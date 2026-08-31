@@ -50,6 +50,18 @@ export function renderInspector(S, view, actions) {
     box.appendChild(row('공격력', fac.weapon <= 0 ? '정지 (무기 0)' :
       `${(B.fortress.atk * fac.weapon).toFixed(1)} (계수 ${(fac.weapon * 100).toFixed(0)}%)`));
     box.appendChild(el('div', 'muted', '석재는 성벽이 손상되면 자동 소모되어 1개당 ' + B.fortress.stoneHeal + ' 회복한다.'));
+
+    // 요새 강화 — 웨이브 성장에 맞서는 유일한 성장 축
+    const lv = n.level || 0;
+    const pw = G.fortressPower(n);
+    box.appendChild(el('div', 'sub', `강화 ${lv} / ${B.fortress.upgrade.maxLevel} 단계`));
+    box.appendChild(row('공격력 배수', `x${pw.dmg.toFixed(2)}`));
+    box.appendChild(row('공격속도 배수', `x${pw.spd.toFixed(2)}`));
+    if (lv < B.fortress.upgrade.maxLevel) {
+      const b = el('button', 'wide', `🔨 요새 강화 — 🪙${G.upgradeCost(n)}`);
+      b.onclick = () => { const r = G.upgradeFortress(S, n); if (!r.ok) actions.toast(r.why); actions.refresh(); };
+      box.appendChild(b);
+    }
   }
 
   if (B.producers[n.type]) {
@@ -145,6 +157,19 @@ function stablePanel(S, n, actions) {
   const spd = G.wagonSpeed(cfg.wagonType, total);
   wrap.appendChild(row('예상 이동 속도', `${spd.toFixed(2)} ${total > rec ? `(권장 초과 −${(B.wagons[cfg.wagonType].speed - spd).toFixed(2)})` : ''}`));
   if (n.pendingCfg) wrap.appendChild(el('div', 'warn', '⏳ 변경된 편성은 마차가 이 마굿간을 지나갈 때 적용된다.'));
+
+  // 마차 증차 — 노선 처리량을 늘리는 가장 직접적인 코인 사용처
+  const line = S.lines.find((l) => l.nodes.includes(n.id));
+  if (line) {
+    wrap.appendChild(el('div', 'sub', `이 노선의 마차 ${line.wagonCount || 1}대`));
+    if ((line.wagonCount || 1) < B.economy.maxWagonsPerLine) {
+      const cost = G.extraWagonCost(line);
+      const b = el('button', 'wide', `🛒 마차 1대 추가 투입 — 🪙${cost}`);
+      b.onclick = () => { const r = G.addWagon(S, line); if (!r.ok) actions.toast(r.why); actions.refresh(); };
+      wrap.appendChild(b);
+    }
+    wrap.appendChild(el('div', 'muted', '마차를 늘리면 같은 노선의 왕복 간격이 줄어 보급량이 늘어난다.'));
+  }
   return wrap;
 }
 

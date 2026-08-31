@@ -56,7 +56,12 @@ export const B = {
     healThreshold: 0.98,  // 체력이 이 비율 미만이면 석재 자동 소모
     // 재고 계수: 재고비율 >= safe 면 100%, 0이면 floor, 사이는 선형
     stockCurve: { safe: 0.30, floor: 0.40 },
-    buildLeadTime: 25,    // 요새 출현 후 적이 오기까지의 준비 시간(초)
+    // 요새 강화 — 코인의 핵심 사용처이자, 웨이브 성장에 맞서는 유일한 성장 축
+    upgrade: { baseCost: 100, costGrow: 1.45, dmgPerLevel: 0.30, spdPerLevel: 0.12, maxLevel: 6 },
+    buildLeadTime: 30,    // 새 전선이 열리면 다음 준비 시간에 이만큼을 더 준다
+    // 수비대는 최소한의 보급을 들고 부임한다. 0에서 시작하면 보급선을 잇기도 전에
+    // 공격 불능 상태로 함락되어, 전선 확장 자체가 불가능해진다.
+    startStockRatio: 0.5,
   },
 
   // ---------- 6. 몬스터 ----------
@@ -70,7 +75,7 @@ export const B = {
   wave: {
     prepTime: 30,          // 웨이브 사이 준비 시간(초)
     baseCount: 20,         // 1웨이브 몬스터 수
-    countGrow: 6,          // 웨이브당 +N 마리
+    countGrow: 4,          // 웨이브당 +N 마리
     duration: 30,          // 등장 기간(초)
     hpGrow: 0.12,          // 웨이브당 몬스터 체력 +12%(복리)
     atkGrow: 0.08,         // 웨이브당 몬스터 공격력 +8%(복리)
@@ -78,9 +83,9 @@ export const B = {
     maxFortress: 4,
     // 웨이브 클리어 보상
     clearCoin: 25,         // 기본 코인
-    clearCoinPerWave: 10,  // 웨이브당 추가 코인
-    hpBonusCoin: 30,       // 요새 평균 체력 비율 x 이 값 만큼 추가 코인
-    killCoinMult: 1,       // 몬스터 처치 코인 배수
+    clearCoinPerWave: 18,  // 웨이브당 추가 코인
+    hpBonusCoin: 40,       // 요새 평균 체력 비율 x 이 값 만큼 추가 코인
+    killCoinMult: 2,       // 몬스터 처치 코인 배수
     // 허가권 선택 보상이 나오는 웨이브 (그 외 웨이브는 코인만)
     permitWaves: [1, 2, 3, 5, 7, 9, 12, 15, 18, 21],
   },
@@ -91,6 +96,9 @@ export const B = {
     startWarehousePermit: 1,
     startStablePermit: 1,
     sellPrice: 2,          // 창고 잉여 자원 1개 판매가
+    // 노선에 마차를 추가 투입하는 비용. N번째 추가 마차 = base * N
+    extraWagonBase: 80,
+    maxWagonsPerLine: 4,
   },
 
   // ---------- 9. 맵 ----------
@@ -112,6 +120,10 @@ export const B = {
       ['farm', 1], ['smith', 1], ['quarry', 1],
     ],
     newProducerEvery: 2,   // N 웨이브마다 생산지 1개 추가 생성
+    // 새 전선이 열리면 그 전선 뒤쪽에 생산지 한 세트가 함께 생긴다.
+    // 이것이 없으면 생산량이 요새 수를 못 따라가 어떤 전략도 5웨이브를 못 넘긴다.
+    frontProducers: ['farm', 'smith', 'quarry'],
+    frontProducerSpread: 210,   // 요새로부터 이 정도 안쪽에 배치
   },
 };
 

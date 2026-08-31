@@ -17,7 +17,8 @@ export function newState() {
     coins: B.economy.startCoin,
     permits: { warehouse: B.economy.startWarehousePermit, stable: B.economy.startStablePermit },
     nodes: [], lines: [], wagons: [], enemies: [], floats: [],
-    wave: { n: 0, phase: 'prep', timer: B.wave.prepTime, queue: [], spawnTimer: 0 },
+    // 최초 전선은 침공이 예고된 뒤 물류망을 처음부터 깔아야 하므로 준비 시간을 더 준다.
+    wave: { n: 0, phase: 'prep', timer: B.wave.prepTime + B.fortress.buildLeadTime, queue: [], spawnTimer: 0 },
     pendingReward: null,
     gameOver: false, victoryWave: 0,
     speed: 1, paused: false,
@@ -80,6 +81,9 @@ export function makeNode(S, type, x, y, extra = {}) {
   if (B.producers[type]) {
     n.res = B.producers[type].res;
     n.timer = 0;
+    // 생산지는 침공 이전부터 가동 중이었다고 본다. 재고를 가득 채운 상태로 등장시켜야
+    // 첫 웨이브 준비 시간(30초, 전체 생산량 12개) 안에 요새를 채울 여지가 생긴다.
+    n.store[n.res] = B.producers[type].cap;
   }
   S.nodes.push(n);
   return n;
@@ -92,22 +96,49 @@ function seedMap(S) {
       makeNode(S, type, p.x, p.y);
     }
   }
-  spawnFortress(S);
+  spawnFortress(S, false);
 }
 
 // 적 침공 루트가 정해지면, 그 루트와 방어선이 만나는 지점에 요새가 "자동" 생성된다.
-export function spawnFortress(S) {
+export function spawnFortress(S, withGarrison = true) {
   const used = S.nodes.filter((n) => n.type === 'fortress').length;
   const angle = B.map.fortressAngles[used % B.map.fortressAngles.length];
   const pos = onPerimeter(angle);
   const f = makeNode(S, 'fortress', pos.x, pos.y, {
     hp: B.fortress.hp, maxHp: B.fortress.hp,
+    // 최초 요새는 기획대로 자원 0에서 시작한다. 게임 도중 열리는 새 전선만
+    // 수비대가 최소 보급을 들고 부임한다(그렇지 않으면 확장이 불가능하다).
+    store: withGarrison ? {
+      food: B.fortress.caps.food * B.fortress.startStockRatio,
+      weapon: B.fortress.caps.weapon * B.fortress.startStockRatio,
+      stone: B.fortress.caps.stone * B.fortress.startStockRatio,
+    } : { food: 0, weapon: 0, stone: 0 },
     atkTimer: 0, inCombat: 0,
     angle,                                    // 침공 루트의 방향
     spawn: onPerimeter(angle, B.map.radius + B.map.enemyRingGap),
   });
-  say(S, `⚑ 새로운 전선! 요새가 생성되었다. ${Math.round(B.fortress.buildLeadTime)}초 안에 보급로를 이어라.`);
+  // 새 전선 뒤쪽(안쪽)에 생산지 한 세트를 함께 배치한다.
+  if (withGarrison) {
+    for (const type of B.map.frontProducers) spawnProducerNear(S, f);
+  }
+  say(S, `⚑ 새로운 전선! 요새가 생성되었다. 보급로를 이어라.`);
   return f;
+}
+
+// 요새 안쪽(중심 방향)의 빈 자리에 생산지를 하나 만든다.
+function spawnProducerNear(S, f) {
+  const type = pick(B.map.frontProducers);
+  const inward = Math.atan2(B.map.cy - f.y, B.map.cx - f.x);
+  for (let i = 0; i < 300; i++) {
+    const a = inward + rnd(-1.0, 1.0);
+    const r = rnd(90, B.map.frontProducerSpread);
+    const p = { x: f.x + Math.cos(a) * r, y: f.y + Math.sin(a) * r };
+    if (!insideField(p)) continue;
+    if (S.nodes.some((n) => dist(n, p) < B.map.minNodeDist * 1.5)) continue;
+    return makeNode(S, type, p.x, p.y);
+  }
+  const p = freeSpot(S);
+  return makeNode(S, type, p.x, p.y);
 }
 
 // ---------------- 건설 ----------------
@@ -179,7 +210,7 @@ export function slotTotal(slots) { return RES.reduce((a, r) => a + slots[r], 0);
 export function createLine(S) {
   const used = S.lines.map((l) => l.color);
   const color = LINE_COLORS.find((c) => !used.includes(c)) || pick(LINE_COLORS);
-  const line = { id: uid(), color, nodes: [], loop: false };
+  const line = { id: uid(), color, nodes: [], loop: false, wagonCount: 1 };
   S.lines.push(line);
   return line;
 }
@@ -200,12 +231,20 @@ export function syncWagons(S) {
   for (const line of S.lines) {
     const valid = line.nodes.length >= 2 && lineHasStable(S, line);
     const have = S.wagons.filter((w) => w.lineId === line.id);
-    if (valid && have.length === 0) {
+    const want = valid ? (line.wagonCount || 1) : 0;
+    if (have.length < want) {
       const stable = line.nodes.map((id) => nodeById(S, id)).find((n) => n?.type === 'stable');
-      S.wagons.push(makeWagon(line, stable));
-      say(S, '🛒 마차가 노선에 배치되었다.');
-    } else if (!valid && have.length) {
-      S.wagons = S.wagons.filter((w) => w.lineId !== line.id);
+      for (let i = have.length; i < want; i++) {
+        const w = makeWagon(line, stable);
+        // 노선 위에 고르게 퍼뜨려 배치한다
+        const segCount = Math.max(1, linePoints(S, line).length - 1);
+        w.seg = Math.floor((segCount * i) / want) % segCount;
+        S.wagons.push(w);
+      }
+      if (have.length === 0) say(S, '🛒 마차가 노선에 배치되었다.');
+    } else if (have.length > want) {
+      const drop = have.slice(want).map((w) => w.id);
+      S.wagons = S.wagons.filter((w) => !drop.includes(w.id));
     }
   }
   // 삭제된 노선 정리
@@ -274,13 +313,19 @@ function stepWagons(S, dt) {
     const spd = wagonSpeed(w.type, slotTotal(w.slots)) * B.pxPerSpeed; // 표의 속도 단위 → px/s
     w.u += (spd * dt) / len * w.dir;
 
+    // 노드 도착 판정. 전진 중 u>=1 이면 pts[seg+1]에, 후진 중 u<=0 이면 pts[seg]에 도착한 것이다.
     if (w.dir > 0 && w.u >= 1) {
-      w.u = 0; w.seg++;
-      arrive(S, w, pts[Math.min(w.seg, segCount)], line, pts);
+      const reached = w.seg + 1;
+      if (reached >= segCount) {
+        if (line.loop) { w.seg = 0; w.u = 0; }        // 순환선은 계속 돈다
+        else { w.seg = segCount - 1; w.u = 1; w.dir = -1; }  // 종점에서 되돌아온다
+      } else { w.seg = reached; w.u = 0; }
+      arrive(S, w, pts[reached]);
     } else if (w.dir < 0 && w.u <= 0) {
-      w.u = 1; w.seg--;
-      arrive(S, w, pts[Math.max(0, w.seg + (w.dir < 0 ? 0 : 1))], line, pts);
-      if (w.seg < 0) w.seg = 0;
+      const reached = w.seg;
+      if (reached <= 0) { w.seg = 0; w.u = 0; w.dir = 1; }   // 시점에서 되돌아온다
+      else { w.seg = reached - 1; w.u = 1; }
+      arrive(S, w, pts[reached]);
     }
     const aa = pts[clamp(w.seg, 0, segCount - 1)], bb = pts[clamp(w.seg + 1, 1, segCount)];
     w.x = aa.x + (bb.x - aa.x) * w.u;
@@ -288,15 +333,7 @@ function stepWagons(S, dt) {
   }
 }
 
-function arrive(S, w, node, line, pts) {
-  const segCount = pts.length - 1;
-  // 종점 처리: 순환 노선이면 계속, 아니면 왕복
-  if (w.dir > 0 && w.seg >= segCount) {
-    if (line.loop) { w.seg = 0; w.u = 0; }
-    else { w.seg = segCount - 1; w.u = 1; w.dir = -1; }
-  } else if (w.dir < 0 && w.seg < 0) {
-    w.seg = 0; w.u = 0; w.dir = 1;
-  }
+function arrive(S, w, node) {
   if (!node) return;
   const moved = transfer(S, w, node);
   w.state = 'dwell';
@@ -363,6 +400,26 @@ function lineDemand(S, lineId) {
 }
 
 // ---------------- 요새 ----------------
+// 강화 레벨에 따른 배수
+export function fortressPower(f) {
+  const u = B.fortress.upgrade;
+  return { dmg: 1 + u.dmgPerLevel * (f.level || 0), spd: 1 + u.spdPerLevel * (f.level || 0) };
+}
+export function upgradeCost(f) {
+  const u = B.fortress.upgrade;
+  return Math.round(u.baseCost * Math.pow(u.costGrow, f.level || 0));
+}
+export function upgradeFortress(S, f) {
+  const u = B.fortress.upgrade;
+  if ((f.level || 0) >= u.maxLevel) return { ok: false, why: '이미 최대 강화 단계다' };
+  const cost = S.cheats.freeBuild ? 0 : upgradeCost(f);
+  if (S.coins < cost) return { ok: false, why: `코인 ${cost} 필요` };
+  S.coins -= cost;
+  f.level = (f.level || 0) + 1;
+  say(S, `🔨 요새를 ${f.level}단계로 강화했다.`);
+  return { ok: true };
+}
+
 export function fortressFactors(f) {
   return {
     food: stockFactor(f.store.food, B.fortress.caps.food),
@@ -396,8 +453,9 @@ function stepFortresses(S, dt) {
       .sort((a, b) => dist(a, f) - dist(b, f))[0];
     if (!target) { f.atkTimer = 0; continue; }
 
-    f.atkTimer = B.fortress.interval / fac.food;   // 식량 부족 → 공격 속도 감소
-    const dmg = B.fortress.atk * fac.weapon;       // 무기 부족 → 공격력 감소
+    const pw = fortressPower(f);
+    f.atkTimer = B.fortress.interval / (fac.food * pw.spd);   // 식량 부족 → 공격 속도 감소
+    const dmg = B.fortress.atk * fac.weapon * pw.dmg;         // 무기 부족 → 공격력 감소
     target.hp -= dmg;
     f.inCombat = 1.2;
     f.shot = { x: target.x, y: target.y, life: 0.12 };
@@ -504,7 +562,10 @@ function clearWave(S) {
     S.pendingReward = rewardChoices(S);
   }
   // 다음 웨이브 준비: 전선/생산지 확장
-  if (W.n % B.wave.newFortressEvery === 0 && forts.length < B.wave.maxFortress) spawnFortress(S);
+  let openedFront = false;
+  if (W.n % B.wave.newFortressEvery === 0 && forts.length < B.wave.maxFortress) {
+    spawnFortress(S); openedFront = true;
+  }
   if (W.n % B.map.newProducerEvery === 0) {
     const type = pick(Object.keys(B.producers));
     const p = freeSpot(S);
@@ -512,7 +573,8 @@ function clearWave(S) {
     say(S, `🏗️ 새로운 ${B.producers[type].name}이(가) 발견되었다.`);
   }
   W.phase = 'prep';
-  W.timer = B.wave.prepTime;
+  // 새 전선이 열렸다면 보급선을 새로 깔 시간을 더 준다
+  W.timer = B.wave.prepTime + (openedFront ? B.fortress.buildLeadTime : 0);
 }
 
 function rewardChoices(S) {
@@ -535,6 +597,21 @@ export function takeReward(S, id) {
   if (id === 'sp') { S.permits.stable++; say(S, '🐴 마굿간 허가권을 얻었다.'); }
   if (id === 'coin') { S.coins += r.coin; S.stats.coinEarned += r.coin; say(S, `🪙 코인 +${r.coin}`); }
   S.pendingReward = null;
+}
+
+// 노선에 마차를 추가 투입한다 (코인 소모)
+export function extraWagonCost(line) {
+  return B.economy.extraWagonBase * (line.wagonCount || 1);
+}
+export function addWagon(S, line) {
+  if ((line.wagonCount || 1) >= B.economy.maxWagonsPerLine) return { ok: false, why: '이 노선의 마차 수가 한계다' };
+  const cost = S.cheats.freeBuild ? 0 : extraWagonCost(line);
+  if (S.coins < cost) return { ok: false, why: `코인 ${cost} 필요` };
+  S.coins -= cost;
+  line.wagonCount = (line.wagonCount || 1) + 1;
+  syncWagons(S);
+  say(S, `🛒 마차를 1대 더 투입했다 (총 ${line.wagonCount}대).`);
+  return { ok: true };
 }
 
 // 창고 잉여 자원 판매 → 코인
