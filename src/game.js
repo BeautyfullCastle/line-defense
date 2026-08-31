@@ -34,13 +34,40 @@ export function say(S, msg) {
   if (S.log.length > 40) S.log.pop();
 }
 
+// ---------------- 맵 기하 (원형 방어선) ----------------
+export const mapCenter = () => ({ x: B.map.cx, y: B.map.cy });
+
+// 방어선 중심으로부터의 거리
+export function distFromCenter(p) { return dist(p, mapCenter()); }
+
+// 물류 건물이 들어갈 수 있는 최대 반경 (방어선 안쪽)
+export function buildRadius() { return B.map.radius - B.map.innerMargin; }
+
+// 각도(도) → 방어선 위의 좌표
+export function onPerimeter(deg, radius = B.map.radius) {
+  const r = (deg * Math.PI) / 180;
+  return { x: B.map.cx + Math.cos(r) * radius, y: B.map.cy + Math.sin(r) * radius };
+}
+
 // ---------------- 맵 생성 ----------------
-function freeSpot(S, pad = 90) {
-  for (let i = 0; i < 400; i++) {
-    const p = { x: rnd(pad, B.map.w - pad), y: rnd(pad, B.map.h - pad) };
+// 생산지는 방어선 '안쪽'에만 생성된다.
+function insideField(p) {
+  const m = B.map.canvasMargin;
+  return distFromCenter(p) <= buildRadius()
+    && p.x >= m && p.x <= B.map.w - m && p.y >= m && p.y <= B.map.h - m;
+}
+
+// 생산지는 방어선 안쪽이면서 화면 안에만 생성된다.
+function freeSpot(S) {
+  const m = B.map.canvasMargin;
+  let best = null;
+  for (let i = 0; i < 1200; i++) {
+    const p = { x: rnd(m, B.map.w - m), y: rnd(m, B.map.h - m) };
+    if (!insideField(p)) continue;
     if (S.nodes.every((n) => dist(n, p) > B.map.minNodeDist * 1.8)) return p;
+    if (!best) best = p;
   }
-  return { x: rnd(pad, B.map.w - pad), y: rnd(pad, B.map.h - pad) };
+  return best || { x: B.map.cx, y: B.map.h - 120 };
 }
 
 export function makeNode(S, type, x, y, extra = {}) {
@@ -68,20 +95,16 @@ function seedMap(S) {
   spawnFortress(S);
 }
 
-// 적 침공 루트가 정해지면 요새가 "자동" 생성된다.
+// 적 침공 루트가 정해지면, 그 루트와 방어선이 만나는 지점에 요새가 "자동" 생성된다.
 export function spawnFortress(S) {
-  const edges = [
-    { x: rnd(120, 320), y: rnd(120, B.map.h - 120), from: { x: -60, y: 0 } },
-    { x: rnd(B.map.w - 320, B.map.w - 120), y: rnd(120, B.map.h - 120), from: { x: B.map.w + 60, y: 0 } },
-    { x: rnd(300, B.map.w - 300), y: rnd(90, 200), from: { x: 0, y: -60 } },
-    { x: rnd(300, B.map.w - 300), y: rnd(B.map.h - 200, B.map.h - 90), from: { x: 0, y: B.map.h + 60 } },
-  ];
   const used = S.nodes.filter((n) => n.type === 'fortress').length;
-  const e = edges[used % edges.length];
-  const f = makeNode(S, 'fortress', e.x, e.y, {
+  const angle = B.map.fortressAngles[used % B.map.fortressAngles.length];
+  const pos = onPerimeter(angle);
+  const f = makeNode(S, 'fortress', pos.x, pos.y, {
     hp: B.fortress.hp, maxHp: B.fortress.hp,
     atkTimer: 0, inCombat: 0,
-    spawn: { x: e.from.x || e.x, y: e.from.y || e.y },
+    angle,                                    // 침공 루트의 방향
+    spawn: onPerimeter(angle, B.map.radius + B.map.enemyRingGap),
   });
   say(S, `⚑ 새로운 전선! 요새가 생성되었다. ${Math.round(B.fortress.buildLeadTime)}초 안에 보급로를 이어라.`);
   return f;
@@ -99,7 +122,7 @@ export function canBuild(S, kind, size, x, y) {
   const c = buildCost(S, kind, size);
   if (S.permits[c.key] < c.permit) return { ok: false, why: `${c.key === 'stable' ? '마굿간' : '창고'} 건설 허가권이 부족하다` };
   if (S.coins < c.coin) return { ok: false, why: `코인이 부족하다 (${c.coin} 필요)` };
-  if (x < 40 || y < 40 || x > B.map.w - 40 || y > B.map.h - 40) return { ok: false, why: '맵 밖에는 지을 수 없다' };
+  if (!insideField({ x, y })) return { ok: false, why: '방어선 안쪽에만 지을 수 있다' };
   if (S.nodes.some((n) => dist(n, { x, y }) < B.map.minNodeDist)) return { ok: false, why: '다른 건물과 너무 가깝다' };
   return { ok: true, cost: c };
 }
@@ -454,10 +477,13 @@ function spawnEnemy(S, spec) {
   if (!f) return;
   const m = B.monsters[spec.type];
   const g = S.wave.n - 1;
-  const sx = f.spawn.x || f.x, sy = f.spawn.y || f.y;
+  // 요새의 각도를 중심으로 부채꼴로 퍼져서, 방어선 바깥에서 등장한다.
+  const spread = rnd(-16, 16);
+  const ring = B.map.radius + B.map.enemyRingGap + rnd(-45, 45);
+  const p = onPerimeter((f.angle ?? 0) + spread, ring);
   S.enemies.push({
     type: spec.type, target: f.id,
-    x: sx + rnd(-40, 40), y: sy + rnd(-40, 40),
+    x: p.x, y: p.y,
     hp: m.hp * Math.pow(1 + B.wave.hpGrow, g),
     maxHp: m.hp * Math.pow(1 + B.wave.hpGrow, g),
     atk: m.atk * Math.pow(1 + B.wave.atkGrow, g),

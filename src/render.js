@@ -1,5 +1,5 @@
 import { B, RES, RES_META } from './balance.js';
-import { linePoints, nodeById, warehouseCap, fortressFactors, slotTotal, wagonSpeed } from './game.js';
+import { linePoints, nodeById, warehouseCap, fortressFactors, slotTotal, wagonSpeed, buildRadius, onPerimeter } from './game.js';
 
 const NODE_R = 20;
 
@@ -7,18 +7,54 @@ export function draw(ctx, S, view) {
   const { w, h } = { w: B.map.w, h: B.map.h };
   ctx.clearRect(0, 0, w, h);
 
-  // 배경
-  ctx.fillStyle = '#12151b'; ctx.fillRect(0, 0, w, h);
-  ctx.strokeStyle = 'rgba(255,255,255,0.035)'; ctx.lineWidth = 1;
-  for (let x = 0; x < w; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
-  for (let y = 0; y < h; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
-
+  drawField(ctx, S, w, h);
   drawLines(ctx, S, view);
   drawEnemies(ctx, S);
   drawNodes(ctx, S, view);
   drawWagons(ctx, S);
   drawFloats(ctx, S);
   drawGhost(ctx, S, view);
+}
+
+// 원형 방어선. 안쪽은 아군 영토(물류망), 바깥은 적 영역.
+function drawField(ctx, S, w, h) {
+  const { cx, cy, radius } = B.map;
+
+  // 바깥 = 적 영역
+  ctx.fillStyle = '#191013'; ctx.fillRect(0, 0, w, h);
+
+  // 안쪽 = 아군 영토
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2); ctx.clip();
+  ctx.fillStyle = '#12151b'; ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = 'rgba(255,255,255,0.035)'; ctx.lineWidth = 1;
+  for (let x = 0; x < w; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+  for (let y = 0; y < h; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+  ctx.restore();
+
+  // 방어선
+  ctx.strokeStyle = '#3d4c66'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2); ctx.stroke();
+
+  // 건설 가능 한계선
+  ctx.strokeStyle = 'rgba(95,209,138,0.16)'; ctx.lineWidth = 1; ctx.setLineDash([6, 8]);
+  ctx.beginPath(); ctx.arc(cx, cy, buildRadius(), 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+
+  // 침공 루트 화살표 — 요새가 선 각도에서 안쪽을 향한다
+  for (const f of S.nodes) {
+    if (f.type !== 'fortress' || f.angle == null) continue;
+    const a = (f.angle * Math.PI) / 180;
+    const tip = onPerimeter(f.angle, radius + 78);
+    ctx.save();
+    ctx.translate(tip.x, tip.y);
+    ctx.rotate(a + Math.PI); // 중심을 향하도록
+    ctx.fillStyle = 'rgba(224,86,79,0.5)';
+    ctx.beginPath();
+    ctx.moveTo(26, 0); ctx.lineTo(-8, -20); ctx.lineTo(-8, -8);
+    ctx.lineTo(-34, -8); ctx.lineTo(-34, 8); ctx.lineTo(-8, 8); ctx.lineTo(-8, 20);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
 }
 
 function drawLines(ctx, S, view) {
@@ -58,7 +94,7 @@ function drawNodes(ctx, S, view) {
     ctx.save();
     ctx.translate(n.x, n.y);
 
-    if (n.type === 'fortress') drawFortress(ctx, S, n);
+    if (n.type === 'fortress') drawFortress(ctx, S, n, hovered || selected);
     else if (n.type === 'warehouse') {
       ctx.fillStyle = '#2b3242'; ctx.strokeStyle = '#7f8ca6'; ctx.lineWidth = 3;
       const r = n.size === 'large' ? 26 : n.size === 'mid' ? 22 : 18;
@@ -93,7 +129,7 @@ function drawNodes(ctx, S, view) {
   }
 }
 
-function drawFortress(ctx, S, f) {
+function drawFortress(ctx, S, f, showRange) {
   const factors = fortressFactors(f);
   const danger = factors.food <= 0 || factors.weapon <= 0;
   ctx.fillStyle = danger ? '#3b2020' : '#232b38';
@@ -102,9 +138,11 @@ function drawFortress(ctx, S, f) {
   roundRect(ctx, -26, -26, 52, 52, 8); ctx.fill(); ctx.stroke();
   label(ctx, '🏰', 0, 8, 24);
 
-  // 사거리
-  ctx.strokeStyle = 'rgba(159,180,214,0.13)'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.arc(0, 0, B.fortress.range, 0, Math.PI * 2); ctx.stroke();
+  // 사거리 — 방어선과 헷갈리지 않도록 마우스를 올리거나 선택했을 때만 표시
+  if (showRange) {
+    ctx.strokeStyle = 'rgba(159,180,214,0.30)'; ctx.lineWidth = 1; ctx.setLineDash([5, 6]);
+    ctx.beginPath(); ctx.arc(0, 0, B.fortress.range, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+  }
 
   // 체력바
   const bw = 66;
