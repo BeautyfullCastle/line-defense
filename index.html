@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>라인 디펜스 (Line Defense)</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div id="app">
+  <header id="hud">
+    <div class="brand">🛡️ <b>라인 디펜스</b></div>
+    <div class="stat">🪙 <b id="coins">0</b><span class="lbl">코인</span></div>
+    <div class="stat">📦 <b id="permitW">0</b><span class="lbl">창고 허가권</span></div>
+    <div class="stat">🐴 <b id="permitS">0</b><span class="lbl">마굿간 허가권</span></div>
+    <div class="stat wave">
+      <div>웨이브 <b id="waveNo">0</b> · <span id="wavePhase">준비</span></div>
+      <div class="bar"><i id="waveBar"></i></div>
+    </div>
+    <div class="spacer"></div>
+    <button id="pauseBtn">⏸ 일시정지</button>
+    <button id="speedBtn">배속 <span id="speedLabel">x1</span></button>
+    <button id="helpBtn">❓ 도움말</button>
+    <button id="cheatBtn" class="cheatbtn">🧪 치트</button>
+  </header>
+
+  <main>
+    <section id="left">
+      <div id="toolbar">
+        <button id="newLine" class="primary">✏️ 새 노선 그리기</button>
+        <div class="buildRow">
+          <button id="buildStableBtn">🐴 마굿간 건설 <em>허가권1</em></button>
+        </div>
+        <div class="buildRow">
+          <button id="buildWhBtn">📦 창고 건설 <em id="whCost">허가권1</em></button>
+          <select id="whSize">
+            <option value="small">소형 (20)</option>
+            <option value="mid">중형 (40)</option>
+            <option value="large">대형 (60)</option>
+          </select>
+        </div>
+        <div id="lines"></div>
+      </div>
+      <div class="canvasWrap">
+        <canvas id="stage"></canvas>
+        <div id="toast" class="hidden"></div>
+      </div>
+      <div id="log"></div>
+    </section>
+
+    <aside id="side">
+      <div id="inspector"></div>
+    </aside>
+  </main>
+</div>
+
+<div id="modal" class="hidden"></div>
+
+<div id="cheat" class="panel hidden">
+  <div class="panelHead"><b>🧪 치트 메뉴</b><button id="cheatClose">✕</button></div>
+  <div id="cheatBody"></div>
+</div>
+
+<div id="help" class="panel hidden">
+  <div class="panelHead"><b>❓ 조작법</b><button id="helpClose">✕</button></div>
+  <div class="helpBody">
+    <p><b>목표</b> — 무작위로 생성되는 요새에 식량·무기·석재를 계속 보급해 웨이브를 막아라. 요새 하나라도 성벽이 0이 되면 패배.</p>
+    <ul>
+      <li><b>노선 그리기</b>: [새 노선 그리기] → 건물을 순서대로 클릭 → 우클릭/Enter로 완성. 시작 건물을 다시 누르면 순환선.</li>
+      <li><b>마굿간</b>: 노선에 마굿간이 최소 1개 있어야 마차가 다닌다. 마차 편성 변경도 마굿간에서 한다.</li>
+      <li><b>창고</b>: 노선이 교차하는 환승역. 잉여 자원을 쌓아두고, 그 노선의 요새가 필요한 만큼만 다시 싣는다.</li>
+      <li><b>요새</b>: 식량이 부족하면 공격 속도가, 무기가 부족하면 공격력이 떨어진다. 둘 중 하나가 0이면 공격 불가. 석재는 성벽을 자동 수리한다.</li>
+      <li><b>단축키</b>: Space 일시정지 · 1/2/3 배속 · Esc 취소 · ` 치트 메뉴</li>
+    </ul>
+  </div>
+</div>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
