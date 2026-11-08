@@ -1,8 +1,9 @@
-name: Deploy to GitHub Pages
+name: Deploy WebGL to GitHub Pages
 
 on:
   push:
-    branches: [claude/web-game-design-implementation-0ih0tk]
+    branches: [main]
+    paths: ['site/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:
@@ -23,18 +24,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # enablement: true 로 Pages가 꺼져 있으면 워크플로가 직접 켠다
       - uses: actions/configure-pages@v5
         with:
           enablement: true
 
-      # 정적 사이트라 빌드가 없다. 저장소 루트를 그대로 올린다.
-      - name: Jekyll 처리 비활성화
-        run: touch .nojekyll
+      # Unity 라이선스가 CI 에 없어서 로컬 WebGL 빌드 결과(site/)를 그대로 올림
+      - name: Disable Jekyll
+        run: touch site/.nojekyll
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: site
 
       - id: deployment
         uses: actions/deploy-pages@v4

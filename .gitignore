@@ -1,0 +1,39 @@
+# Unity
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+/Assets/Plugins/Editor/JetBrains*
+*.csproj
+!/Tools/**/*.csproj
+*.sln
+*.slnx
+*.suo
+*.user
+*.pidb
+*.booproj
+*.unityproj
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+.vs/
+.vscode/
+.idea/
+crashlytics-buildid.txt
+sysinfo.txt
+mono_crash.*
+
+# WebGL 빌드 산출물은 site/ 로 복사해 배포함
+/Build/
+
+# dotnet SimRunner
+/Tools/**/bin/
+/Tools/**/obj/
+
+# 로컬 도구 상태
+.omc/
+.claude/

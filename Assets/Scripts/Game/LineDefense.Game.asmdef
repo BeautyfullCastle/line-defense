@@ -1,0 +1,17 @@
+{
+    "name": "LineDefense.Game",
+    "rootNamespace": "LineDefense.View",
+    "references": [
+        "LineDefense.Core",
+        "UnityEngine.UI"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
