@@ -15,6 +15,9 @@ namespace LineDefense.Core
 
         /// <summary>코드에 있지만 시트에 없어 이전 값을 유지한 상수 이름입니다.</summary>
         public readonly List<string> Missing = new List<string>();
+
+        /// <summary>적용은 했지만 확인이 필요한 내용입니다.</summary>
+        public readonly List<string> Warnings = new List<string>();
     }
 
     /// <summary>
@@ -47,6 +50,9 @@ namespace LineDefense.Core
         public float ATK_UP_STEP = .5f, ATK_FOOD_STEP = .3f, SPD_UP_STEP = .4f, SPD_AMMO_STEP = 0f;
         // 웨이브 진행
         public float FIRST_WAVE = 32f, BETWEEN = 24f, ROUTE_EVERY = 3f, ROUTE_MAX = 7f;
+
+        /// <summary>시트 "보급 선택지"에서 읽은 행입니다(ID → 행). null이면 Supply의 기본 표를 씁니다.</summary>
+        public IReadOnlyDictionary<string, SupplyRow> SupplyRows;
 
         static readonly Dictionary<string, FieldInfo> fields = BuildFields();
         static readonly string[] keys = BuildKeys();

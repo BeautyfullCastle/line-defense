@@ -3,42 +3,61 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
 
 namespace LineDefense.Core
 {
+    /// <summary>밸런스 시트 파일에서 읽은 값입니다.</summary>
+    public sealed class BalanceSheetData
+    {
+        /// <summary>"밸런스" 시트의 코드 상수 → 값입니다.</summary>
+        public Dictionary<string, float> Values;
+
+        /// <summary>"보급 선택지" 시트의 ID → 행입니다. 시트가 없거나 읽지 못하면 null입니다.</summary>
+        public Dictionary<string, SupplyRow> Supply;
+
+        /// <summary>읽기는 됐지만 확인이 필요한 내용입니다(같은 ID가 두 번 있음 등).</summary>
+        public readonly List<string> Warnings = new List<string>();
+    }
+
     /// <summary>
-    /// 기획 밸런스 시트(xlsx)의 "밸런스" 시트에서 코드 상수와 값을 읽습니다.
-    /// 머리글 행의 "코드 상수", "값" 열을 찾아 읽으므로 열 순서가 바뀌어도 됩니다.
+    /// 기획 밸런스 시트(xlsx)를 읽습니다. "밸런스" 시트에서 코드 상수와 값을,
+    /// "보급 선택지" 시트에서 ID, 값, 등장 가중치, 최대 선택 횟수, 첫 등장 웨이브를 읽습니다.
+    /// 머리글 이름으로 열을 찾으므로 열 순서가 바뀌어도 됩니다.
     /// </summary>
     public static class BalanceSheet
     {
-        /// <summary>값을 읽는 시트 이름입니다. 없으면 첫 시트를 읽습니다.</summary>
+        /// <summary>밸런스 값을 읽는 시트 이름입니다. 없으면 첫 시트를 읽습니다.</summary>
         public const string SheetName = "밸런스";
 
-        const string KeyHeader = "코드 상수";
-        const string ValueHeader = "값";
-        const string Ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
-        const string RelNs = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+        /// <summary>보급 선택지를 읽는 시트 이름입니다. 없으면 보급 선택지는 코드 기본 표를 씁니다.</summary>
+        public const string SupplySheetName = "보급 선택지";
+
+        const string KeyHeader = "코드 상수", ValueHeader = "값";
+        const string IdHeader = "ID", WeightHeader = "등장 가중치", MaxHeader = "최대 선택 횟수", FirstHeader = "첫 등장 웨이브";
 
         static readonly Regex KeyPattern = new Regex("^[A-Z][A-Z0-9_]*$");
 
-        /// <summary>xlsx 바이트에서 상수 이름과 값을 읽습니다. 실패하면 false와 이유를 반환합니다.</summary>
-        public static bool TryRead(byte[] xlsx, out Dictionary<string, float> values, out string error)
+        /// <summary>xlsx 바이트를 읽습니다. 밸런스 값을 못 읽으면 false와 이유를 반환합니다.</summary>
+        public static bool TryRead(byte[] xlsx, out BalanceSheetData data, out string error)
         {
-            values = null;
+            data = null;
             error = null;
             if (xlsx == null || xlsx.Length == 0) { error = "빈 파일입니다."; return false; }
             try
             {
                 using (var zip = new ZipArchive(new MemoryStream(xlsx), ZipArchiveMode.Read))
                 {
-                    string path = FindSheetPath(zip);
-                    if (path == null) { error = "시트를 찾지 못했습니다."; return false; }
-                    values = Extract(ReadRows(zip, path, ReadSharedStrings(zip)), out error);
-                    return values != null;
+                    var book = new XlsxWorkbook(zip);
+                    var rows = book.Rows(SheetName, true);
+                    if (rows == null) { error = "시트를 찾지 못했습니다."; return false; }
+                    var d = new BalanceSheetData { Values = ExtractValues(rows, out error) };
+                    if (d.Values == null) return false;
+                    var supplyRows = book.Rows(SupplySheetName, false);
+                    if (supplyRows != null) d.Supply = ExtractSupply(supplyRows, d.Warnings);
+                    data = d;
+                    return true;
                 }
             }
             catch (Exception e) when (e is InvalidDataException || e is XmlException || e is IOException)
@@ -48,145 +67,96 @@ namespace LineDefense.Core
             }
         }
 
-        static List<string> ReadSharedStrings(ZipArchive zip)
+        /// <summary>
+        /// 읽은 값을 balance에 덮어씁니다. 보급 선택지 행은 balance가 가진 행 위에 덮어씁니다.
+        /// 결과에는 밸런스 값과 보급 선택지의 바뀐 값, 모르는 상수·ID, 경고가 들어갑니다.
+        /// </summary>
+        public static BalanceApplyResult ApplyTo(Balance balance, BalanceSheetData data)
         {
-            var list = new List<string>();
-            var e = zip.GetEntry("xl/sharedStrings.xml");
-            if (e == null) return list;
-            var doc = Load(e);
-            var nm = Names(doc);
-            foreach (XmlNode si in doc.SelectNodes("//m:si", nm)) list.Add(TextOf(si, nm));
-            return list;
-        }
-
-        // 이름이 SheetName인 시트(없으면 첫 시트)의 zip 안 경로
-        static string FindSheetPath(ZipArchive zip)
-        {
-            var wbEntry = zip.GetEntry("xl/workbook.xml");
-            var relEntry = zip.GetEntry("xl/_rels/workbook.xml.rels");
-            if (wbEntry == null || relEntry == null) return null;
-            var wb = Load(wbEntry);
-            XmlElement pick = null;
-            foreach (XmlNode n in wb.SelectNodes("//m:sheets/m:sheet", Names(wb)))
+            var before = Supply.Build(balance.SupplyRows, out float growBefore);
+            var res = balance.Apply(data.Values);
+            if (data.Supply != null)
             {
-                if (!(n is XmlElement s)) continue;
-                if (pick == null) pick = s;
-                if (s.GetAttribute("name") == SheetName) { pick = s; break; }
+                var merged = new Dictionary<string, SupplyRow>();
+                if (balance.SupplyRows != null) foreach (var kv in balance.SupplyRows) merged[kv.Key] = kv.Value;
+                foreach (var kv in data.Supply) merged[kv.Key] = kv.Value;
+                balance.SupplyRows = merged;
             }
-            return pick == null ? null : RelTarget(Load(relEntry), pick.GetAttribute("id", RelNs));
+            var after = Supply.Build(balance.SupplyRows, out float growAfter, res.Unknown);
+            Supply.Diff(before, after, res.Changed);
+            if (growBefore != growAfter) res.Changed.Add((Supply.GoldGrowId, growBefore, growAfter));
+            res.Warnings.AddRange(data.Warnings);
+            return res;
         }
 
-        static string RelTarget(XmlDocument rels, string id)
-        {
-            foreach (XmlNode n in rels.DocumentElement.ChildNodes)
-            {
-                if (!(n is XmlElement rel) || rel.GetAttribute("Id") != id) continue;
-                string target = rel.GetAttribute("Target").TrimStart('/');
-                return target.StartsWith("xl/", StringComparison.Ordinal) ? target : "xl/" + target;
-            }
-            return null;
-        }
-
-        // 행마다 열 문자 -> 셀 문자열
-        static List<Dictionary<string, string>> ReadRows(ZipArchive zip, string path, List<string> shared)
-        {
-            var e = zip.GetEntry(path);
-            if (e == null) throw new InvalidDataException("시트 파일이 없습니다: " + path);
-            var doc = Load(e);
-            var nm = Names(doc);
-            var rows = new List<Dictionary<string, string>>();
-            foreach (XmlNode row in doc.SelectNodes("//m:sheetData/m:row", nm))
-            {
-                var cells = new Dictionary<string, string>();
-                foreach (XmlNode n in row.SelectNodes("m:c", nm))
-                {
-                    if (!(n is XmlElement c)) continue;
-                    string v = CellText(c, nm, shared);
-                    if (!string.IsNullOrEmpty(v)) cells[Column(c.GetAttribute("r"))] = v.Trim();
-                }
-                rows.Add(cells);
-            }
-            return rows;
-        }
-
-        // 공유 문자열, 인라인 문자열, 숫자, 수식 결과를 모두 문자열로 읽음
-        static string CellText(XmlElement c, XmlNamespaceManager nm, List<string> shared)
-        {
-            string t = c.GetAttribute("t");
-            if (t == "inlineStr") return TextOf(c, nm);
-            string v = c.SelectSingleNode("m:v", nm)?.InnerText;
-            if (v == null || t != "s") return v;
-            return int.TryParse(v, NumberStyles.Integer, CultureInfo.InvariantCulture, out int i) && i >= 0 && i < shared.Count ? shared[i] : null;
-        }
-
-        static Dictionary<string, float> Extract(List<Dictionary<string, string>> rows, out string error)
+        static Dictionary<string, float> ExtractValues(List<Dictionary<string, string>> rows, out string error)
         {
             error = null;
-            if (!FindColumns(rows, out string keyCol, out string valCol, out int start))
-            {
-                error = "머리글에서 \"" + KeyHeader + "\"와 \"" + ValueHeader + "\" 열을 찾지 못했습니다.";
-                return null;
-            }
+            var cols = FindColumns(rows, out int start, KeyHeader, ValueHeader);
+            if (cols == null) { error = Missing(SheetName, KeyHeader, ValueHeader); return null; }
             var values = new Dictionary<string, float>();
             for (int i = start; i < rows.Count; i++)
             {
                 // 계산값 행은 코드 상수 칸이 비어 있어 건너뜀
-                if (!rows[i].TryGetValue(keyCol, out string key) || !KeyPattern.IsMatch(key)) continue;
-                if (rows[i].TryGetValue(valCol, out string raw) && float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out float f))
-                    values[key] = f;
+                if (!TryKey(rows[i], cols[KeyHeader], out string key)) continue;
+                float? v = Num(rows[i], cols[ValueHeader]);
+                if (v != null) values[key] = v.Value;
             }
             if (values.Count == 0) { error = "읽은 값이 없습니다."; return null; }
             return values;
         }
 
-        // "코드 상수"로 시작하는 칸과 "값" 칸이 함께 있는 첫 행을 머리글로 봄
-        static bool FindColumns(List<Dictionary<string, string>> rows, out string keyCol, out string valCol, out int start)
+        static Dictionary<string, SupplyRow> ExtractSupply(List<Dictionary<string, string>> rows, List<string> warnings)
+        {
+            var cols = FindColumns(rows, out int start, IdHeader, ValueHeader, WeightHeader, MaxHeader, FirstHeader);
+            if (cols == null)
+            {
+                warnings.Add(Missing(SupplySheetName, IdHeader, ValueHeader, WeightHeader, MaxHeader, FirstHeader) + " 보급 선택지는 기본 표를 씁니다.");
+                return null;
+            }
+            var supply = new Dictionary<string, SupplyRow>();
+            for (int i = start; i < rows.Count; i++)
+            {
+                // 구분 제목 행과 아래쪽 계산 표는 ID 칸이 비어 있거나 ID 모양이 아니라 건너뜀
+                if (!TryKey(rows[i], cols[IdHeader], out string id)) continue;
+                if (supply.ContainsKey(id)) { warnings.Add(SupplySheetName + " 시트에 ID " + id + "가 두 번 있습니다. 첫 행만 씁니다."); continue; }
+                var r = rows[i];
+                supply[id] = new SupplyRow
+                {
+                    Val = Num(r, cols[ValueHeader]), Weight = Num(r, cols[WeightHeader]),
+                    Max = Int(Num(r, cols[MaxHeader])), FirstWave = Int(Num(r, cols[FirstHeader])),
+                };
+            }
+            return supply;
+        }
+
+        // 머리글 이름이 모두 있는 첫 행을 찾아 머리글 → 열 문자를 돌려줌. "코드 상수 (프로토 연동)"처럼 뒤에 붙은 설명은 무시
+        static Dictionary<string, string> FindColumns(List<Dictionary<string, string>> rows, out int start, params string[] headers)
         {
             for (int i = 0; i < rows.Count; i++)
             {
-                keyCol = valCol = null;
-                foreach (var kv in rows[i])
+                var found = new Dictionary<string, string>();
+                foreach (var cell in rows[i])
                 {
-                    if (kv.Value.StartsWith(KeyHeader, StringComparison.Ordinal)) keyCol = kv.Key;
-                    else if (kv.Value == ValueHeader) valCol = kv.Key;
+                    string h = Array.Find(headers, x => cell.Value == x || cell.Value.StartsWith(x + " ", StringComparison.Ordinal));
+                    if (h != null && !found.ContainsKey(h)) found[h] = cell.Key;
                 }
                 start = i + 1;
-                if (keyCol != null && valCol != null) return true;
+                if (found.Count == headers.Length) return found;
             }
-            keyCol = valCol = null;
             start = 0;
-            return false;
+            return null;
         }
 
-        static XmlDocument Load(ZipArchiveEntry e)
-        {
-            var doc = new XmlDocument { XmlResolver = null };
-            using (var s = e.Open())
-            using (var r = XmlReader.Create(s, new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null }))
-                doc.Load(r);
-            return doc;
-        }
+        static string Missing(string sheet, params string[] headers) =>
+            sheet + " 시트 머리글에서 " + string.Join(", ", headers) + " 열을 찾지 못했습니다.";
 
-        static XmlNamespaceManager Names(XmlDocument doc)
-        {
-            var nm = new XmlNamespaceManager(doc.NameTable);
-            nm.AddNamespace("m", Ns);
-            return nm;
-        }
+        static bool TryKey(Dictionary<string, string> row, string col, out string key) =>
+            row.TryGetValue(col, out key) && KeyPattern.IsMatch(key);
 
-        // 서식이 섞인 문자열(r/t)도 이어 붙임. 발음 표기(rPh)는 제외
-        static string TextOf(XmlNode node, XmlNamespaceManager nm)
-        {
-            var sb = new StringBuilder();
-            foreach (XmlNode t in node.SelectNodes(".//m:t[not(ancestor::m:rPh)]", nm)) sb.Append(t.InnerText);
-            return sb.ToString();
-        }
+        static float? Num(Dictionary<string, string> row, string col) =>
+            row.TryGetValue(col, out string raw) && float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out float f) ? f : (float?)null;
 
-        static string Column(string cellRef)
-        {
-            int n = 0;
-            while (n < cellRef.Length && char.IsLetter(cellRef[n])) n++;
-            return cellRef.Substring(0, n);
-        }
+        static int? Int(float? v) => v == null ? (int?)null : Game.I(v.Value);
     }
 }
