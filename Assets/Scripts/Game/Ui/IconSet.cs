@@ -15,20 +15,23 @@ namespace LineDefense.View.Ui
             public Sprite Sprite;
         }
 
-        [SerializeField] Entry[] _entries = Array.Empty<Entry>();
-        [SerializeField] Sprite _fallback;
+        [SerializeField] private Entry[] _entries = Array.Empty<Entry>();
+        [SerializeField] private Sprite _fallback;
 
-        Dictionary<string, Sprite> _map;
+        private Dictionary<string, Sprite> _spriteByKey;
 
         /// <summary>키에 맞는 흰색 아이콘입니다. 색은 Image.color로 입힙니다.</summary>
         public Sprite Get(string key)
         {
-            if (_map == null)
+            if (_spriteByKey == null)
             {
-                _map = new Dictionary<string, Sprite>();
-                foreach (var e in _entries) _map[e.Key] = e.Sprite;
+                _spriteByKey = new Dictionary<string, Sprite>();
+                foreach (var entry in _entries)
+                {
+                    _spriteByKey[entry.Key] = entry.Sprite;
+                }
             }
-            return key != null && _map.TryGetValue(key, out var s) ? s : _fallback;
+            return key != null && _spriteByKey.TryGetValue(key, out var sprite) ? sprite : _fallback;
         }
     }
 }

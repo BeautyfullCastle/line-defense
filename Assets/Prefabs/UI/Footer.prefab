@@ -449,7 +449,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3a42e6bff7e5dfb4f84ed6f03e4949b8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: LineDefense.Game::LineDefense.View.Ui.UiButton
-  _btn: {fileID: 2380914160209617989}
+  _button: {fileID: 2380914160209617989}
   _border: {fileID: 9013135008252027467}
   _fill: {fileID: 4529704975650560207}
   _label: {fileID: 2506295615292014420}
@@ -966,7 +966,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3a42e6bff7e5dfb4f84ed6f03e4949b8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: LineDefense.Game::LineDefense.View.Ui.UiButton
-  _btn: {fileID: 4228853942979980109}
+  _button: {fileID: 4228853942979980109}
   _border: {fileID: 8940409194424387247}
   _fill: {fileID: 1716203013767221465}
   _label: {fileID: 1059236865996552388}
@@ -1293,15 +1293,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: LineDefense.Game::LineDefense.View.Ui.FlowLayout
   _items:
-  - Rt: {fileID: 7564282408945833734}
+  - RectTransform: {fileID: 7564282408945833734}
     BreakBefore: 0
-  - Rt: {fileID: 1367491289087916995}
+  - RectTransform: {fileID: 1367491289087916995}
     BreakBefore: 0
-  - Rt: {fileID: 4999648136786901230}
+  - RectTransform: {fileID: 4999648136786901230}
     BreakBefore: 0
-  - Rt: {fileID: 8855161893588212029}
+  - RectTransform: {fileID: 8855161893588212029}
     BreakBefore: 0
-  - Rt: {fileID: 4343197967034725549}
+  - RectTransform: {fileID: 4343197967034725549}
     BreakBefore: 1
 --- !u!222 &4098808087028512540
 CanvasRenderer:
@@ -1864,7 +1864,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3a42e6bff7e5dfb4f84ed6f03e4949b8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: LineDefense.Game::LineDefense.View.Ui.UiButton
-  _btn: {fileID: 6826280059290619733}
+  _button: {fileID: 6826280059290619733}
   _border: {fileID: 5868486996890594075}
   _fill: {fileID: 889497156710255038}
   _label: {fileID: 434610327788639446}

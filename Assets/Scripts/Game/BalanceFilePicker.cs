@@ -23,7 +23,11 @@ namespace LineDefense.View
         {
 #if UNITY_EDITOR
             string path = UnityEditor.EditorUtility.OpenFilePanel("밸런스 시트 불러오기", string.Empty, "xlsx");
-            if (!string.IsNullOrEmpty(path)) onPicked(Path.GetFileName(path), File.ReadAllBytes(path));
+            if (!string.IsNullOrEmpty(path))
+            {
+                onPicked(Path.GetFileName(path), File.ReadAllBytes(path));
+            }
+
             return true;
 #elif UNITY_WEBGL
             BalancePickFile(target.name, method);
@@ -39,9 +43,16 @@ namespace LineDefense.View
             name = null;
             bytes = null;
             int i = payload == null ? -1 : payload.LastIndexOf('|');
-            if (i < 0) return false;
+            if (i < 0)
+            {
+                return false;
+            }
+
             name = payload.Substring(0, i);
-            try { bytes = Convert.FromBase64String(payload.Substring(i + 1)); }
+            try
+            {
+                bytes = Convert.FromBase64String(payload.Substring(i + 1));
+            }
             catch (FormatException) { return false; }
             return true;
         }

@@ -226,7 +226,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ba0eccc19b6e9704f82ff5a5634023b3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: LineDefense.Game::LineDefense.View.PipGroup
-  _art: {fileID: 11400000, guid: 371cdae754c47054a90677a4d4eb3e2d, type: 2}
+  _worldArt: {fileID: 11400000, guid: 371cdae754c47054a90677a4d4eb3e2d, type: 2}
   _order: 24
   Alpha: 1
 --- !u!1 &3091902321902001568
@@ -455,7 +455,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ba0eccc19b6e9704f82ff5a5634023b3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: LineDefense.Game::LineDefense.View.PipGroup
-  _art: {fileID: 11400000, guid: 371cdae754c47054a90677a4d4eb3e2d, type: 2}
+  _worldArt: {fileID: 11400000, guid: 371cdae754c47054a90677a4d4eb3e2d, type: 2}
   _order: 22
   Alpha: 1
 --- !u!1 &6863391051429953299
@@ -603,7 +603,7 @@ MonoBehaviour:
   _pulse: {fileID: 4706250629876220189}
   _body: {fileID: 4245560728133212564}
   _dot: {fileID: 8856576244952912434}
-  _cfg: {fileID: 4461258665628934137}
+  _configRing: {fileID: 4461258665628934137}
   _tray: {fileID: 7637687021345096419}
   _marks: {fileID: 334782660017147915}
   _pips: {fileID: 9078819037342428161}

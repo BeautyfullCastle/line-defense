@@ -37,3 +37,6 @@ mono_crash.*
 # 로컬 도구 상태
 .omc/
 .claude/
+
+# contents-loader 빌드 출력
+/ContentsBuild/

@@ -10,21 +10,21 @@ namespace LineDefense.View.Ui
     /// </summary>
     public sealed class UiRoot : MonoBehaviour
     {
-        [SerializeField] Canvas _canvas;
-        [SerializeField] HudView _hud;
-        [SerializeField] FooterView _footer;
-        [SerializeField] ConfigPanel _config;
-        [SerializeField] CheatPanel _cheat;
-        [SerializeField] DialogueView _dialogue;
-        [SerializeField] ToastView _toast;
-        [SerializeField] RewardView _reward;
-        [SerializeField] RewardBannerView _banner;
-        [SerializeField] HelpView _help;
-        [SerializeField] OverView _over;
-        [SerializeField] FlyLayer _fly;
-        [SerializeField] WorldLabels _labels;
+        [SerializeField] private Canvas _canvas;
+        [SerializeField] private HudView _hud;
+        [SerializeField] private FooterView _footer;
+        [SerializeField] private ConfigPanel _config;
+        [SerializeField] private CheatPanel _cheat;
+        [SerializeField] private DialogueView _dialogue;
+        [SerializeField] private ToastView _toast;
+        [SerializeField] private RewardView _reward;
+        [SerializeField] private RewardBannerView _banner;
+        [SerializeField] private HelpView _help;
+        [SerializeField] private OverView _over;
+        [SerializeField] private FlyLayer _fly;
+        [SerializeField] private WorldLabels _labels;
 
-        float _w, _h, _sf;
+        private float _width, _height, _scaleFactor;
 
         public HudView Hud => _hud;
         public FooterView Footer => _footer;
@@ -40,19 +40,28 @@ namespace LineDefense.View.Ui
         public WorldLabels Labels => _labels;
 
         /// <summary>캔버스 가로 크기(캔버스 단위)입니다.</summary>
-        public float CanvasW { get; private set; } = 1280f;
+        public float CanvasWidth { get; private set; } = 1280f;
 
         /// <summary>캔버스 세로 크기(캔버스 단위)입니다.</summary>
-        public float CanvasH { get; private set; } = 720f;
+        public float CanvasHeight { get; private set; } = 720f;
 
         /// <summary>머리말이 차지하는 화면 픽셀 높이입니다.</summary>
-        public float HeaderPx { get; private set; }
+        public float HeaderPixels
+        {
+            get; private set;
+        }
 
         /// <summary>꼬리말이 차지하는 화면 픽셀 높이입니다.</summary>
-        public float FooterPx { get; private set; }
+        public float FooterPixels
+        {
+            get; private set;
+        }
 
         /// <summary>머리말 높이(캔버스 단위)입니다.</summary>
-        public float HeaderUnits { get; private set; }
+        public float HeaderUnits
+        {
+            get; private set;
+        }
 
         /// <summary>캔버스 단위 하나가 차지하는 화면 픽셀 수입니다.</summary>
         public float ScaleFactor => _canvas.scaleFactor;
@@ -61,39 +70,56 @@ namespace LineDefense.View.Ui
         public void Init()
         {
             _fly.Init(Resolve);
-            _footer.Pending = k => _fly.Pending(k == BuildKind.Stable ? FlyTarget.Stable
-                : k == BuildKind.Fort ? FlyTarget.Fort : FlyTarget.Warehouse);
+            _footer.Pending = kind => _fly.Pending(kind == BuildKind.Stable ? FlyTarget.Stable
+                : kind == BuildKind.Fort ? FlyTarget.Fort : FlyTarget.Warehouse);
         }
 
-        RectTransform Resolve(FlyTarget t)
+        private RectTransform Resolve(FlyTarget target)
         {
-            switch (t)
+            switch (target)
             {
-                case FlyTarget.Gold: return _hud.GoldRect;
-                case FlyTarget.Wall: return _hud.WallRect;
-                case FlyTarget.Stable: return _footer.CountRect(BuildKind.Stable);
-                case FlyTarget.Fort: return _footer.CountRect(BuildKind.Fort);
-                case FlyTarget.Warehouse: return _footer.CountRect(BuildKind.Warehouse);
-                default: return _footer.InfoRect;
+                case FlyTarget.Gold:
+                    return _hud.GoldRect;
+                case FlyTarget.Wall:
+                    return _hud.WallRect;
+                case FlyTarget.Stable:
+                    return _footer.CountRect(BuildKind.Stable);
+                case FlyTarget.Fort:
+                    return _footer.CountRect(BuildKind.Fort);
+                case FlyTarget.Warehouse:
+                    return _footer.CountRect(BuildKind.Warehouse);
+                default:
+                    return _footer.InfoRect;
             }
         }
 
         /// <summary>화면 크기나 꼬리말 내용이 바뀌었을 때만 머리말, 꼬리말과 떠 있는 패널을 다시 배치합니다.</summary>
         public void UpdateLayout()
         {
-            var rt = (RectTransform)_canvas.transform;
-            float w = rt.rect.width, h = rt.rect.height, sf = _canvas.scaleFactor;
-            if (w < 10f || h < 10f) return;
-            bool resized = !Mathf.Approximately(w, _w) || !Mathf.Approximately(h, _h) || !Mathf.Approximately(sf, _sf);
-            if (!resized && !_footer.NeedsLayout) return;
-            _w = w; _h = h; _sf = sf;
-            CanvasW = w; CanvasH = h;
-            HeaderUnits = _hud.Layout(w);
-            float fh = _footer.Layout(w);
-            HeaderPx = HeaderUnits * sf;
-            FooterPx = fh * sf;
-            _config.Relayout(w, HeaderUnits);
-            _dialogue.Relayout(w, fh);
+            var rectTransform = (RectTransform)_canvas.transform;
+            float width = rectTransform.rect.width, height = rectTransform.rect.height, scaleFactor = _canvas.scaleFactor;
+            if (width < 10f || height < 10f)
+            {
+                return;
+            }
+
+            bool resized = !Mathf.Approximately(width, _width) || !Mathf.Approximately(height, _height) || !Mathf.Approximately(scaleFactor, _scaleFactor);
+            if (!resized && !_footer.NeedsLayout)
+            {
+                return;
+            }
+
+            _width = width;
+            _height = height;
+            _scaleFactor = scaleFactor;
+            CanvasWidth = width;
+            CanvasHeight = height;
+            HeaderUnits = _hud.Layout(width);
+            float footerHeight = _footer.Layout(width);
+            HeaderPixels = HeaderUnits * scaleFactor;
+            FooterPixels = footerHeight * scaleFactor;
+            _config.Relayout(width, HeaderUnits);
+            _dialogue.Relayout(width, footerHeight);
             _toast.SetTop(HeaderUnits);
             _cheat.SetTop(HeaderUnits);
         }

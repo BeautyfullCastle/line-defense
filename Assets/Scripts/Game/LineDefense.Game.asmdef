@@ -3,6 +3,7 @@
     "rootNamespace": "LineDefense.View",
     "references": [
         "LineDefense.Core",
+        "H.ContentsLoader",
         "UnityEngine.UI"
     ],
     "includePlatforms": [],

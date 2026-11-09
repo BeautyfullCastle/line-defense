@@ -23,13 +23,13 @@ MonoBehaviour:
   Ghost: {fileID: 8311253485665745810, guid: bcf9ab348b92d2f4abc13e6365ed7a84, type: 3}
   Pip: {fileID: 1286039104982473495, guid: 3e4166962bf4fd24fbc7ab68fb8fe047, type: 3}
   Disc: {fileID: 21300000, guid: ebb3f5cc20608994c825443e26dd8f2a, type: 3}
-  Tri: {fileID: 21300000, guid: 580b7769aa84e5940b44d4c50d65323a, type: 3}
+  Triangle: {fileID: 21300000, guid: 580b7769aa84e5940b44d4c50d65323a, type: 3}
   PipRingCircle: {fileID: 21300000, guid: 26c562d848b23aa49b6fe8655b6309e4, type: 3}
-  PipRingTri: {fileID: 21300000, guid: d48cb9e4c5fb4064299c3dea678e049f, type: 3}
-  PipReqCircle: {fileID: 21300000, guid: 5c1362423388e3040a3cfd9d120bbae7, type: 3}
-  PipReqTri: {fileID: 21300000, guid: 25e1df0e80261f34c86366cdb91d5891, type: 3}
+  PipRingTriangle: {fileID: 21300000, guid: d48cb9e4c5fb4064299c3dea678e049f, type: 3}
+  PipRequestCircle: {fileID: 21300000, guid: 5c1362423388e3040a3cfd9d120bbae7, type: 3}
+  PipRequestTriangle: {fileID: 21300000, guid: 25e1df0e80261f34c86366cdb91d5891, type: 3}
   PipOverCircle: {fileID: 21300000, guid: 3d1ef594601d6ae4aaca42ee0cd7a231, type: 3}
-  PipOverTri: {fileID: 21300000, guid: d178d9bd16338f84b96454ac963cf27f, type: 3}
+  PipOverTriangle: {fileID: 21300000, guid: d178d9bd16338f84b96454ac963cf27f, type: 3}
   Square: {fileID: 21300000, guid: b90e2d832a400dc4a9d7b1d3c693bb48, type: 3}
   Diamond: {fileID: 21300000, guid: fa26736e25a1437478e1a2e468168026, type: 3}
   Chevrons: {fileID: 21300000, guid: 54223de27a64bbb4b97644bf4bf99f54, type: 3}

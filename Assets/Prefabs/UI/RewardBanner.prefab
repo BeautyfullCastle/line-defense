@@ -442,7 +442,7 @@ MonoBehaviour:
   _card: {fileID: 6702425308621656116}
   _head: {fileID: 9141267294956313532}
   _title: {fileID: 1020091407651952323}
-  _desc: {fileID: 4830960542794929589}
+  _description: {fileID: 4830960542794929589}
   _icon: {fileID: 8181391313637347752}
   _icons: {fileID: 11400000, guid: 7ac28a29ea2163f429705c4aad180d0b, type: 2}
 --- !u!225 &6944312727971757901

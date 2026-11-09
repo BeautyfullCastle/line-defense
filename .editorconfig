@@ -1,0 +1,100 @@
+# Microsoft .NET 코딩 규칙(https://learn.microsoft.com/dotnet/csharp/fundamentals/coding-style/coding-conventions)을 따름
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{json,asmdef,asmref,yml,yaml}]
+indent_style = space
+indent_size = 2
+
+[*.cs]
+indent_style = space
+indent_size = 4
+
+# 접근 한정자는 항상 씀. this.는 쓰지 않음
+dotnet_style_require_accessibility_modifiers = always:warning
+dotnet_style_qualification_for_field = false:warning
+dotnet_style_qualification_for_property = false:warning
+dotnet_style_qualification_for_method = false:warning
+dotnet_style_qualification_for_event = false:warning
+dotnet_style_predefined_type_for_locals_parameters_members = true:warning
+dotnet_style_readonly_field = true:suggestion
+csharp_preferred_modifier_order = public,private,protected,internal,file,static,extern,new,virtual,abstract,sealed,override,readonly,unsafe,required,volatile,async:warning
+
+# 중괄호는 새 줄에. 한 줄에 문장 하나
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+csharp_new_line_before_members_in_object_initializers = true
+csharp_new_line_before_members_in_anonymous_types = true
+csharp_preserve_single_line_statements = false
+csharp_prefer_braces = true:warning
+csharp_preserve_single_line_blocks = false
+csharp_indent_case_contents = true
+csharp_indent_switch_labels = true
+csharp_space_after_cast = false
+csharp_space_after_keywords_in_control_flow_statements = true
+csharp_using_directive_placement = outside_namespace:warning
+dotnet_sort_system_directives_first = true
+
+# 이름 규칙
+dotnet_naming_symbols.types.applicable_kinds = class, struct, interface, enum, delegate
+dotnet_naming_symbols.members.applicable_kinds = method, property, event
+dotnet_naming_symbols.public_fields.applicable_kinds = field
+dotnet_naming_symbols.public_fields.applicable_accessibilities = public, internal, protected, protected_internal
+dotnet_naming_symbols.constants.applicable_kinds = field, local
+dotnet_naming_symbols.constants.required_modifiers = const
+dotnet_naming_symbols.private_static_fields.applicable_kinds = field
+dotnet_naming_symbols.private_static_fields.applicable_accessibilities = private
+dotnet_naming_symbols.private_static_fields.required_modifiers = static
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+dotnet_naming_symbols.locals_parameters.applicable_kinds = local, parameter
+dotnet_naming_symbols.local_functions.applicable_kinds = local_function
+dotnet_naming_symbols.interfaces.applicable_kinds = interface
+
+dotnet_naming_style.pascal.capitalization = pascal_case
+dotnet_naming_style.camel.capitalization = camel_case
+dotnet_naming_style.underscore_camel.capitalization = camel_case
+dotnet_naming_style.underscore_camel.required_prefix = _
+dotnet_naming_style.s_camel.capitalization = camel_case
+dotnet_naming_style.s_camel.required_prefix = s_
+dotnet_naming_style.i_pascal.capitalization = pascal_case
+dotnet_naming_style.i_pascal.required_prefix = I
+
+dotnet_naming_rule.interfaces.symbols = interfaces
+dotnet_naming_rule.interfaces.style = i_pascal
+dotnet_naming_rule.interfaces.severity = warning
+dotnet_naming_rule.constants.symbols = constants
+dotnet_naming_rule.constants.style = pascal
+dotnet_naming_rule.constants.severity = warning
+dotnet_naming_rule.types.symbols = types
+dotnet_naming_rule.types.style = pascal
+dotnet_naming_rule.types.severity = warning
+dotnet_naming_rule.members.symbols = members
+dotnet_naming_rule.members.style = pascal
+dotnet_naming_rule.members.severity = warning
+dotnet_naming_rule.public_fields.symbols = public_fields
+dotnet_naming_rule.public_fields.style = pascal
+dotnet_naming_rule.public_fields.severity = warning
+dotnet_naming_rule.private_static_fields.symbols = private_static_fields
+dotnet_naming_rule.private_static_fields.style = s_camel
+dotnet_naming_rule.private_static_fields.severity = warning
+dotnet_naming_rule.private_fields.symbols = private_fields
+dotnet_naming_rule.private_fields.style = underscore_camel
+dotnet_naming_rule.private_fields.severity = warning
+dotnet_naming_rule.local_functions.symbols = local_functions
+dotnet_naming_rule.local_functions.style = pascal
+dotnet_naming_rule.local_functions.severity = warning
+dotnet_naming_rule.locals_parameters.symbols = locals_parameters
+dotnet_naming_rule.locals_parameters.style = camel
+dotnet_naming_rule.locals_parameters.severity = warning
+
+# 밸런스 상수는 기획 시트의 "코드 상수" 열 이름과 같아야 하므로 예외
+[Assets/Scripts/Core/Balance.cs]
+dotnet_naming_rule.public_fields.severity = none

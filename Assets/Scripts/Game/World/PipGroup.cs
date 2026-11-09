@@ -12,13 +12,13 @@ namespace LineDefense.View
     public sealed class PipGroup : MonoBehaviour
     {
         // 원·삼각형 스프라이트 반지름과 테두리 스프라이트 기준 반지름(월드 단위)
-        const float ShapeR = 16f, RingR = 3.3f, SquareSide = 4f;
+        private const float ShapeRadius = 16f, RingRadius = 3.3f, SquareSide = 4f;
 
-        [SerializeField] WorldArt _art;
-        [SerializeField] int _order;
+        [SerializeField] private WorldArt _worldArt;
+        [SerializeField] private int _order;
 
-        readonly List<SpriteRenderer> _items = new List<SpriteRenderer>();
-        int _used;
+        private readonly List<SpriteRenderer> _items = new List<SpriteRenderer>();
+        private int _used;
 
         /// <summary>이후 그리는 도형의 알파에 곱하는 값입니다.</summary>
         public float Alpha = 1f;
@@ -32,66 +32,79 @@ namespace LineDefense.View
         public void End()
         {
             for (int i = _used; i < _items.Count; i++)
-                if (_items[i].gameObject.activeSelf) _items[i].gameObject.SetActive(false);
+            {
+                if (_items[i].gameObject.activeSelf)
+                {
+                    _items[i].gameObject.SetActive(false);
+                }
+            }
         }
 
         /// <summary>스프라이트 하나를 (x, y)에 균등 배율로 그립니다. layer는 같은 묶음 안의 위아래 순서입니다.</summary>
-        public SpriteRenderer Shape(Sprite s, float x, float y, float scale, Color c, int layer = 0) =>
-            Put(s, x, y, new Vector3(scale, scale, 1f), c, layer);
+        public SpriteRenderer Shape(Sprite sprite, float x, float y, float scale, Color color, int layer = 0) =>
+            Put(sprite, x, y, new Vector3(scale, scale, 1f), color, layer);
 
         /// <summary>왼쪽 위 (x, y), 폭 w, 높이 h 사각형을 채웁니다.</summary>
-        public void Rect(float x, float y, float w, float h, Color c, int layer = 0) =>
-            Put(_art.Square, x + w * 0.5f, y + h * 0.5f, new Vector3(w / SquareSide, h / SquareSide, 1f), c, layer);
+        public void Rect(float x, float y, float width, float height, Color color, int layer = 0) =>
+            Put(_worldArt.Square, x + width * 0.5f, y + height * 0.5f, new Vector3(width / SquareSide, height / SquareSide, 1f), color, layer);
 
         /// <summary>자원 모양(식량 원, 무기 삼각형)을 반지름 r로 채웁니다.</summary>
-        public void Dot(Res k, float x, float y, float r, Color c) => Shape(Fill(k), x, y, r / ShapeR, c);
+        public void Dot(Res resource, float x, float y, float radius, Color color) => Shape(Fill(resource), x, y, radius / ShapeRadius, color);
 
         /// <summary>찬 칸은 크고 진한 채움, 빈 칸은 작고 흐린 테두리로 그립니다. onColor가 있으면 그 색으로 그립니다.</summary>
-        public void Slot(Res k, float x, float y, bool full, float r, Color? onColor = null)
+        public void Slot(Res resource, float x, float y, bool full, float radius, Color? onColor = null)
         {
-            var col = onColor ?? Palette.Of(k);
+            var color = onColor ?? Palette.ColorOf(resource);
             if (full)
             {
-                Dot(k, x, y, r * 1.15f, col);
+                Dot(resource, x, y, radius * 1.15f, color);
                 return;
             }
             float prev = Alpha;
             Alpha = prev * 0.45f;
-            if (onColor == null) Dot(k, x, y, r * 0.85f, Palette.Ground);
-            Shape(k == Res.Food ? _art.PipRingCircle : _art.PipRingTri, x, y, r / RingR, col, 1);
+            if (onColor == null)
+            {
+                Dot(resource, x, y, radius * 0.85f, Palette.Ground);
+            }
+
+            Shape(resource == Res.Food ? _worldArt.PipRingCircle : _worldArt.PipRingTriangle, x, y, radius / RingRadius, color, 1);
             Alpha = prev;
         }
 
         /// <summary>요청 칸(창고 목표량, 요새 예약)을 점선 테두리로 그립니다.</summary>
-        public void Request(Res k, float x, float y, float r)
+        public void Request(Res resource, float x, float y, float radius)
         {
-            Dot(k, x, y, r * 0.95f, Palette.Ground);
-            Shape(k == Res.Food ? _art.PipReqCircle : _art.PipReqTri, x, y, r / RingR, Palette.Of(k), 1);
+            Dot(resource, x, y, radius * 0.95f, Palette.Ground);
+            Shape(resource == Res.Food ? _worldArt.PipRequestCircle : _worldArt.PipRequestTriangle, x, y, radius / RingRadius, Palette.ColorOf(resource), 1);
         }
 
         /// <summary>칸을 넘친 자원 둘레의 붉은 테두리입니다.</summary>
-        public void Over(Res k, float x, float y) =>
-            Shape(k == Res.Food ? _art.PipOverCircle : _art.PipOverTri, x, y, 1f, Palette.Danger, 1);
+        public void Over(Res resource, float x, float y) =>
+            Shape(resource == Res.Food ? _worldArt.PipOverCircle : _worldArt.PipOverTriangle, x, y, 1f, Palette.Danger, 1);
 
-        Sprite Fill(Res k) => k == Res.Food ? _art.Disc : _art.Tri;
+        private Sprite Fill(Res resource) => resource == Res.Food ? _worldArt.Disc : _worldArt.Triangle;
 
-        SpriteRenderer Put(Sprite s, float x, float y, Vector3 scale, Color c, int layer)
+        private SpriteRenderer Put(Sprite sprite, float x, float y, Vector3 scale, Color color, int layer)
         {
             if (_used == _items.Count)
             {
-                var sr = Instantiate(_art.Pip, transform, false);
-                _items.Add(sr);
+                var spriteRenderer = Instantiate(_worldArt.Pip, transform, false);
+                _items.Add(spriteRenderer);
             }
-            var r = _items[_used++];
-            if (!r.gameObject.activeSelf) r.gameObject.SetActive(true);
-            r.sprite = s;
-            r.sortingOrder = _order + layer;
-            c.a *= Alpha;
-            r.color = c;
-            var t = r.transform;
-            t.localPosition = new Vector3(x, -y, 0f);
-            t.localScale = scale;
-            return r;
+            var item = _items[_used++];
+            if (!item.gameObject.activeSelf)
+            {
+                item.gameObject.SetActive(true);
+            }
+
+            item.sprite = sprite;
+            item.sortingOrder = _order + layer;
+            color.a *= Alpha;
+            item.color = color;
+            var itemTransform = item.transform;
+            itemTransform.localPosition = new Vector3(x, -y, 0f);
+            itemTransform.localScale = scale;
+            return item;
         }
     }
 }

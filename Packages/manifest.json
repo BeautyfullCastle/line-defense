@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "com.h.contents-loader": "https://github.com/BeautyfullCastle/contents-loader.git?path=/Packages/com.h.contents-loader#eea91f152bd6ab5cf662918a25cd32cbbd6e9f2b",
     "com.unity.ide.rider": "3.0.40",
     "com.unity.pipeline": "0.10.0-exp.1",
     "com.unity.ugui": "2.0.0",

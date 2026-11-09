@@ -34,29 +34,45 @@ namespace LineDefense.Core
         /// <summary>보급 선택지를 읽는 시트 이름입니다. 없으면 보급 선택지는 코드 기본 표를 씁니다.</summary>
         public const string SupplySheetName = "보급 선택지";
 
-        const string KeyHeader = "코드 상수", ValueHeader = "값";
-        const string IdHeader = "ID", WeightHeader = "등장 가중치", MaxHeader = "최대 선택 횟수", FirstHeader = "첫 등장 웨이브";
+        private const string KeyHeader = "코드 상수", ValueHeader = "값";
+        private const string IdHeader = "ID", WeightHeader = "등장 가중치", MaxHeader = "최대 선택 횟수", FirstHeader = "첫 등장 웨이브";
 
-        static readonly Regex KeyPattern = new Regex("^[A-Z][A-Z0-9_]*$");
+        private static readonly Regex s_keyPattern = new Regex("^[A-Z][A-Z0-9_]*$");
 
         /// <summary>xlsx 바이트를 읽습니다. 밸런스 값을 못 읽으면 false와 이유를 반환합니다.</summary>
         public static bool TryRead(byte[] xlsx, out BalanceSheetData data, out string error)
         {
             data = null;
             error = null;
-            if (xlsx == null || xlsx.Length == 0) { error = "빈 파일입니다."; return false; }
+            if (xlsx == null || xlsx.Length == 0)
+            {
+                error = "빈 파일입니다.";
+                return false;
+            }
             try
             {
-                using (var zip = new ZipArchive(new MemoryStream(xlsx), ZipArchiveMode.Read))
+                using (var archive = new ZipArchive(new MemoryStream(xlsx), ZipArchiveMode.Read))
                 {
-                    var book = new XlsxWorkbook(zip);
+                    var book = new XlsxWorkbook(archive);
                     var rows = book.Rows(SheetName, true);
-                    if (rows == null) { error = "시트를 찾지 못했습니다."; return false; }
-                    var d = new BalanceSheetData { Values = ExtractValues(rows, out error) };
-                    if (d.Values == null) return false;
+                    if (rows == null)
+                    {
+                        error = "시트를 찾지 못했습니다.";
+                        return false;
+                    }
+                    var sheetData = new BalanceSheetData { Values = ExtractValues(rows, out error) };
+                    if (sheetData.Values == null)
+                    {
+                        return false;
+                    }
+
                     var supplyRows = book.Rows(SupplySheetName, false);
-                    if (supplyRows != null) d.Supply = ExtractSupply(supplyRows, d.Warnings);
-                    data = d;
+                    if (supplyRows != null)
+                    {
+                        sheetData.Supply = ExtractSupply(supplyRows, sheetData.Warnings);
+                    }
+
+                    data = sheetData;
                     return true;
                 }
             }
@@ -74,39 +90,69 @@ namespace LineDefense.Core
         public static BalanceApplyResult ApplyTo(Balance balance, BalanceSheetData data)
         {
             var before = Supply.Build(balance.SupplyRows, out float growBefore);
-            var res = balance.Apply(data.Values);
+            var result = balance.Apply(data.Values);
             if (data.Supply != null)
             {
                 var merged = new Dictionary<string, SupplyRow>();
-                if (balance.SupplyRows != null) foreach (var kv in balance.SupplyRows) merged[kv.Key] = kv.Value;
-                foreach (var kv in data.Supply) merged[kv.Key] = kv.Value;
+                if (balance.SupplyRows != null)
+                {
+                    foreach (var pair in balance.SupplyRows)
+                    {
+                        merged[pair.Key] = pair.Value;
+                    }
+                }
+
+                foreach (var pair in data.Supply)
+                {
+                    merged[pair.Key] = pair.Value;
+                }
+
                 balance.SupplyRows = merged;
             }
-            var after = Supply.Build(balance.SupplyRows, out float growAfter, res.Unknown);
-            Supply.Diff(before, after, res.Changed);
-            if (growBefore != growAfter) res.Changed.Add((Supply.GoldGrowId, growBefore, growAfter));
-            res.Warnings.AddRange(data.Warnings);
-            return res;
+            var after = Supply.Build(balance.SupplyRows, out float growAfter, result.Unknown);
+            Supply.Diff(before, after, result.Changed);
+            if (growBefore != growAfter)
+            {
+                result.Changed.Add((Supply.GoldGrowId, growBefore, growAfter));
+            }
+
+            result.Warnings.AddRange(data.Warnings);
+            return result;
         }
 
-        static Dictionary<string, float> ExtractValues(List<Dictionary<string, string>> rows, out string error)
+        private static Dictionary<string, float> ExtractValues(List<Dictionary<string, string>> rows, out string error)
         {
             error = null;
             var cols = FindColumns(rows, out int start, KeyHeader, ValueHeader);
-            if (cols == null) { error = Missing(SheetName, KeyHeader, ValueHeader); return null; }
+            if (cols == null)
+            {
+                error = Missing(SheetName, KeyHeader, ValueHeader);
+                return null;
+            }
             var values = new Dictionary<string, float>();
             for (int i = start; i < rows.Count; i++)
             {
                 // 계산값 행은 코드 상수 칸이 비어 있어 건너뜀
-                if (!TryKey(rows[i], cols[KeyHeader], out string key)) continue;
-                float? v = Num(rows[i], cols[ValueHeader]);
-                if (v != null) values[key] = v.Value;
+                if (!TryKey(rows[i], cols[KeyHeader], out string key))
+                {
+                    continue;
+                }
+
+                float? value = Num(rows[i], cols[ValueHeader]);
+                if (value != null)
+                {
+                    values[key] = value.Value;
+                }
             }
-            if (values.Count == 0) { error = "읽은 값이 없습니다."; return null; }
+            if (values.Count == 0)
+            {
+                error = "읽은 값이 없습니다.";
+                return null;
+            }
             return values;
         }
 
-        static Dictionary<string, SupplyRow> ExtractSupply(List<Dictionary<string, string>> rows, List<string> warnings)
+        private static Dictionary<string, SupplyRow> ExtractSupply(List<Dictionary<string, string>> rows, List<string> warnings)
         {
             var cols = FindColumns(rows, out int start, IdHeader, ValueHeader, WeightHeader, MaxHeader, FirstHeader);
             if (cols == null)
@@ -118,45 +164,61 @@ namespace LineDefense.Core
             for (int i = start; i < rows.Count; i++)
             {
                 // 구분 제목 행과 아래쪽 계산 표는 ID 칸이 비어 있거나 ID 모양이 아니라 건너뜀
-                if (!TryKey(rows[i], cols[IdHeader], out string id)) continue;
-                if (supply.ContainsKey(id)) { warnings.Add(SupplySheetName + " 시트에 ID " + id + "가 두 번 있습니다. 첫 행만 씁니다."); continue; }
-                var r = rows[i];
+                if (!TryKey(rows[i], cols[IdHeader], out string id))
+                {
+                    continue;
+                }
+
+                if (supply.ContainsKey(id))
+                {
+                    warnings.Add(SupplySheetName + " 시트에 ID " + id + "가 두 번 있습니다. 첫 행만 씁니다.");
+                    continue;
+                }
+                var row = rows[i];
                 supply[id] = new SupplyRow
                 {
-                    Val = Num(r, cols[ValueHeader]), Weight = Num(r, cols[WeightHeader]),
-                    Max = Int(Num(r, cols[MaxHeader])), FirstWave = Int(Num(r, cols[FirstHeader])),
+                    Value = Num(row, cols[ValueHeader]),
+                    Weight = Num(row, cols[WeightHeader]),
+                    MaxPicks = Int(Num(row, cols[MaxHeader])),
+                    FirstWave = Int(Num(row, cols[FirstHeader])),
                 };
             }
             return supply;
         }
 
         // 머리글 이름이 모두 있는 첫 행을 찾아 머리글 → 열 문자를 돌려줌. "코드 상수 (프로토 연동)"처럼 뒤에 붙은 설명은 무시
-        static Dictionary<string, string> FindColumns(List<Dictionary<string, string>> rows, out int start, params string[] headers)
+        private static Dictionary<string, string> FindColumns(List<Dictionary<string, string>> rows, out int start, params string[] headers)
         {
             for (int i = 0; i < rows.Count; i++)
             {
                 var found = new Dictionary<string, string>();
                 foreach (var cell in rows[i])
                 {
-                    string h = Array.Find(headers, x => cell.Value == x || cell.Value.StartsWith(x + " ", StringComparison.Ordinal));
-                    if (h != null && !found.ContainsKey(h)) found[h] = cell.Key;
+                    string header = Array.Find(headers, x => cell.Value == x || cell.Value.StartsWith(x + " ", StringComparison.Ordinal));
+                    if (header != null && !found.ContainsKey(header))
+                    {
+                        found[header] = cell.Key;
+                    }
                 }
                 start = i + 1;
-                if (found.Count == headers.Length) return found;
+                if (found.Count == headers.Length)
+                {
+                    return found;
+                }
             }
             start = 0;
             return null;
         }
 
-        static string Missing(string sheet, params string[] headers) =>
+        private static string Missing(string sheet, params string[] headers) =>
             sheet + " 시트 머리글에서 " + string.Join(", ", headers) + " 열을 찾지 못했습니다.";
 
-        static bool TryKey(Dictionary<string, string> row, string col, out string key) =>
-            row.TryGetValue(col, out key) && KeyPattern.IsMatch(key);
+        private static bool TryKey(Dictionary<string, string> row, string column, out string key) =>
+            row.TryGetValue(column, out key) && s_keyPattern.IsMatch(key);
 
-        static float? Num(Dictionary<string, string> row, string col) =>
-            row.TryGetValue(col, out string raw) && float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out float f) ? f : (float?)null;
+        private static float? Num(Dictionary<string, string> row, string column) =>
+            row.TryGetValue(column, out string raw) && float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out float parsed) ? parsed : (float?)null;
 
-        static int? Int(float? v) => v == null ? (int?)null : Game.I(v.Value);
+        private static int? Int(float? value) => value == null ? (int?)null : Game.RoundToInt(value.Value);
     }
 }

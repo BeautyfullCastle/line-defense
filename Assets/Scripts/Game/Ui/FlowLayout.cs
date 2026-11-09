@@ -14,44 +14,48 @@ namespace LineDefense.View.Ui
         [Serializable]
         public struct Item
         {
-            public RectTransform Rt;
+            public RectTransform RectTransform;
             public bool BreakBefore;
         }
 
-        [SerializeField] List<Item> _items = new List<Item>();
+        [SerializeField] private List<Item> _items = new List<Item>();
 
         /// <summary>항목을 끝에 추가합니다. 크기는 RectTransform.sizeDelta를 씁니다.</summary>
-        public void Add(RectTransform rt, bool breakBefore = false)
+        public void Add(RectTransform rectTransform, bool breakBefore = false)
         {
-            rt.anchorMin = new Vector2(0, 1);
-            rt.anchorMax = new Vector2(0, 1);
-            rt.pivot = new Vector2(0, 1);
-            _items.Add(new Item { Rt = rt, BreakBefore = breakBefore });
+            rectTransform.anchorMin = new Vector2(0, 1);
+            rectTransform.anchorMax = new Vector2(0, 1);
+            rectTransform.pivot = new Vector2(0, 1);
+            _items.Add(new Item { RectTransform = rectTransform, BreakBefore = breakBefore });
         }
 
         /// <summary>항목을 모두 비웁니다. 오브젝트는 파괴하지 않습니다.</summary>
         public void Clear() => _items.Clear();
 
         /// <summary>폭에 맞춰 배치하고 필요한 높이를 돌려줍니다.</summary>
-        public float Layout(float width, float padX, float padY, float gapX, float gapY)
+        public float Layout(float width, float paddingX, float paddingY, float gapX, float gapY)
         {
-            float x = padX, y = padY, rowH = 0f, avail = width - padX;
-            foreach (var it in _items)
+            float x = paddingX, y = paddingY, rowHeight = 0f, availableWidth = width - paddingX;
+            foreach (var item in _items)
             {
-                if (!it.Rt.gameObject.activeSelf) continue;
-                var s = it.Rt.sizeDelta;
-                bool wrap = it.BreakBefore || (x > padX && x + s.x > avail);
-                if (wrap && rowH > 0f)
+                if (!item.RectTransform.gameObject.activeSelf)
                 {
-                    y += rowH + gapY;
-                    x = padX;
-                    rowH = 0f;
+                    continue;
                 }
-                it.Rt.anchoredPosition = new Vector2(x, -y);
-                x += s.x + gapX;
-                rowH = Mathf.Max(rowH, s.y);
+
+                var size = item.RectTransform.sizeDelta;
+                bool wrap = item.BreakBefore || (x > paddingX && x + size.x > availableWidth);
+                if (wrap && rowHeight > 0f)
+                {
+                    y += rowHeight + gapY;
+                    x = paddingX;
+                    rowHeight = 0f;
+                }
+                item.RectTransform.anchoredPosition = new Vector2(x, -y);
+                x += size.x + gapX;
+                rowHeight = Mathf.Max(rowHeight, size.y);
             }
-            return y + rowH + padY;
+            return y + rowHeight + paddingY;
         }
     }
 }

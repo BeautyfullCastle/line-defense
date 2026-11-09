@@ -8,45 +8,45 @@ namespace LineDefense.View.Ui
     /// <summary>상단 머리말(제목, 웨이브, 골드, 성벽, 버튼)입니다. 프리팹 Prefabs/UI/Hud에 붙습니다.</summary>
     public sealed class HudView : MonoBehaviour
     {
-        [SerializeField] FlowLayout _flow;
-        [SerializeField] Text _version, _wave, _phaseL, _phase, _routes, _gold, _wallTxt;
-        [SerializeField] RectTransform _barFill;
-        [SerializeField] Image _barFillImg;
-        [SerializeField] UiButton _bHelp, _bPause, _bSpeed, _bCheat;
+        [SerializeField] private FlowLayout _flow;
+        [SerializeField] private Text _version, _wave, _phaseLabel, _phase, _routes, _gold, _wallText;
+        [SerializeField] private RectTransform _barFill;
+        [SerializeField] private Image _barFillImage;
+        [SerializeField] private UiButton _helpButton, _pauseButton, _speedButton, _cheatButton;
 
-        int _key = int.MinValue;
-        float _wallFlash;
+        private int _refreshKey = int.MinValue;
+        private float _wallFlash;
 
         /// <summary>머리말 루트입니다.</summary>
         public RectTransform Root => (RectTransform)transform;
 
         public Action OnHelp, OnPause, OnSpeed, OnCheat;
 
-        void Awake()
+        private void Awake()
         {
             // 배포된 빌드가 어느 버전인지 바로 알 수 있게 제목 옆에 표시
             _version.text = "v" + Application.version;
-            var vr = _version.rectTransform;
-            vr.sizeDelta = new Vector2(UiFit.Width(_version) + 12f, vr.sizeDelta.y);
-            _bHelp.Button.onClick.AddListener(() => OnHelp?.Invoke());
-            _bPause.Button.onClick.AddListener(() => OnPause?.Invoke());
-            _bSpeed.Button.onClick.AddListener(() => OnSpeed?.Invoke());
-            _bCheat.Button.onClick.AddListener(() => OnCheat?.Invoke());
+            var rectTransform = _version.rectTransform;
+            rectTransform.sizeDelta = new Vector2(UiFit.Width(_version) + 12f, rectTransform.sizeDelta.y);
+            _helpButton.Button.onClick.AddListener(() => OnHelp?.Invoke());
+            _pauseButton.Button.onClick.AddListener(() => OnPause?.Invoke());
+            _speedButton.Button.onClick.AddListener(() => OnSpeed?.Invoke());
+            _cheatButton.Button.onClick.AddListener(() => OnCheat?.Invoke());
         }
 
         /// <summary>폭에 맞춰 배치하고 머리말 높이를 돌려줍니다.</summary>
-        public float Layout(float canvasW)
+        public float Layout(float canvasWidth)
         {
-            float h = _flow.Layout(canvasW, 16f, 10f, 18f, 6f);
-            Root.sizeDelta = new Vector2(0f, h);
-            return h;
+            float headerHeight = _flow.Layout(canvasWidth, 16f, 10f, 18f, 6f);
+            Root.sizeDelta = new Vector2(0f, headerHeight);
+            return headerHeight;
         }
 
         /// <summary>골드 숫자가 날아오는 동전을 맞는 칸입니다.</summary>
         public RectTransform GoldRect => _gold.rectTransform;
 
         /// <summary>성벽 수치 글자 칸입니다.</summary>
-        public RectTransform WallRect => _wallTxt.rectTransform;
+        public RectTransform WallRect => _wallText.rectTransform;
 
         /// <summary>성벽이 피해를 받았을 때 막대와 수치를 잠깐 빨갛게 합니다.</summary>
         public void WallHit() => _wallFlash = 0.35f;
@@ -54,60 +54,78 @@ namespace LineDefense.View.Ui
         /// <summary>
         /// 수치와 버튼 글자를 갱신합니다. goldPending은 아직 날아오는 중인 골드로, 도착할 때 숫자에 더해집니다.
         /// </summary>
-        public void Refresh(Game g, bool paused, int speed, int goldPending = 0)
+        public void Refresh(Game game, bool paused, int speed, int goldPending = 0)
         {
-            float ratio = g.WallMax > 0f ? Mathf.Clamp01(g.Wall / g.WallMax) : 0f;
-            var am = new Vector2(ratio, 1f);
-            if (_barFill.anchorMax != am) _barFill.anchorMax = am;
+            float ratio = game.WallMax > 0f ? Mathf.Clamp01(game.Wall / game.WallMax) : 0f;
+            var anchorMax = new Vector2(ratio, 1f);
+            if (_barFill.anchorMax != anchorMax)
+            {
+                _barFill.anchorMax = anchorMax;
+            }
+
             _wallFlash = Mathf.Max(0f, _wallFlash - Time.unscaledDeltaTime);
             bool hurt = _wallFlash > 0f;
-            var barCol = hurt || g.Wall < g.WallMax * 0.35f ? Palette.Danger : Palette.Ink;
-            if (_barFillImg.color != barCol) _barFillImg.color = barCol;
-            var txtCol = hurt ? Palette.Danger : Palette.Ink;
-            if (_wallTxt.color != txtCol) _wallTxt.color = txtCol;
+            var barColor = hurt || game.Wall < game.WallMax * 0.35f ? Palette.Danger : Palette.Ink;
+            if (_barFillImage.color != barColor)
+            {
+                _barFillImage.color = barColor;
+            }
+
+            var textColor = hurt ? Palette.Danger : Palette.Ink;
+            if (_wallText.color != textColor)
+            {
+                _wallText.color = textColor;
+            }
 
             // 표시 값이 바뀐 프레임에만 문자열을 새로 만듦
-            float shownGold = Mathf.Max(0f, g.Gold - goldPending);
-            int key = HashCode.Combine(g.Wave, g.Routes.Count, shownGold, g.Phase, Mathf.CeilToInt(g.Count), g.Mons.Count + g.QueueCount,
-                HashCode.Combine(Mathf.CeilToInt(g.Wall), Mathf.RoundToInt(g.WallMax), paused, speed));
-            if (key == _key) return;
-            _key = key;
-            Set(_wave, g.Wave.ToString());
-            Set(_routes, g.Routes.Count.ToString());
-            Set(_gold, Fmt(shownGold));
-            if (g.Phase == Phase.Countdown)
+            float shownGold = Mathf.Max(0f, game.Gold - goldPending);
+            int key = HashCode.Combine(game.Wave, game.Routes.Count, shownGold, game.Phase, Mathf.CeilToInt(game.Countdown), game.Monsters.Count + game.QueueCount,
+                HashCode.Combine(Mathf.CeilToInt(game.Wall), Mathf.RoundToInt(game.WallMax), paused, speed));
+            if (key == _refreshKey)
             {
-                Set(_phaseL, "다음 침공");
-                int s = Mathf.CeilToInt(g.Count);
-                Set(_phase, $"{s / 60}:{s % 60:00}");
+                return;
             }
-            else if (g.Phase == Phase.Wave)
+
+            _refreshKey = key;
+            SetText(_wave, game.Wave.ToString());
+            SetText(_routes, game.Routes.Count.ToString());
+            SetText(_gold, FormatNumber(shownGold));
+            if (game.Phase == Phase.Countdown)
             {
-                Set(_phaseL, "침공 중");
-                Set(_phase, $"몬스터 {g.Mons.Count + g.QueueCount}");
+                SetText(_phaseLabel, "다음 침공");
+                int seconds = Mathf.CeilToInt(game.Countdown);
+                SetText(_phase, $"{seconds / 60}:{seconds % 60:00}");
+            }
+            else if (game.Phase == Phase.Wave)
+            {
+                SetText(_phaseLabel, "침공 중");
+                SetText(_phase, $"몬스터 {game.Monsters.Count + game.QueueCount}");
             }
             else
             {
-                Set(_phaseL, "정비");
-                Set(_phase, "-");
+                SetText(_phaseLabel, "정비");
+                SetText(_phase, "-");
             }
-            Set(_wallTxt, $"{Mathf.CeilToInt(g.Wall)}/{Mathf.RoundToInt(g.WallMax)}");
-            _bPause.SetText(paused ? "계속" : "일시정지");
-            _bSpeed.SetText(speed + "×");
+            SetText(_wallText, $"{Mathf.CeilToInt(game.Wall)}/{Mathf.RoundToInt(game.WallMax)}");
+            _pauseButton.SetText(paused ? "계속" : "일시정지");
+            _speedButton.SetText(speed + "×");
         }
 
         /// <summary>치트 버튼의 선택 표시를 바꿉니다.</summary>
-        public void SetCheatOn(bool on) => _bCheat.SetOn(on);
+        public void SetCheatOn(bool on) => _cheatButton.SetOn(on);
 
-        static void Set(Text t, string s)
+        private static void SetText(Text label, string text)
         {
-            if (t.text != s) t.text = s;
+            if (label.text != text)
+            {
+                label.text = text;
+            }
         }
 
         /// <summary>정수면 소수점 없이, 아니면 소수 4자리까지 줄여 표기합니다.</summary>
-        public static string Fmt(float v)
+        public static string FormatNumber(float value)
         {
-            return Mathf.Approximately(v, Mathf.Round(v)) ? Mathf.RoundToInt(v).ToString() : v.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture);
+            return Mathf.Approximately(value, Mathf.Round(value)) ? Mathf.RoundToInt(value).ToString() : value.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture);
         }
     }
 }

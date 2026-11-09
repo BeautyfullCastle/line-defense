@@ -355,7 +355,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1cb9bf00eaf82a749af3a36fdc5ee615, type: 3}
   m_Name: 
   m_EditorClassIdentifier: LineDefense.Game::LineDefense.View.DenView
-  _den: {fileID: 759868907764621536}
+  _denRoot: {fileID: 759868907764621536}
   _body: {fileID: 8764364263475082056}
   _mouth: {fileID: 4977630121942580577}
   _fresh: {fileID: 1301762087495320174}

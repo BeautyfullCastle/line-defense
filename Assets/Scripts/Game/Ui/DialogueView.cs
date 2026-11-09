@@ -7,218 +7,305 @@ namespace LineDefense.View.Ui
     /// <summary>화면 아래 가운데에 뜨는 대사창입니다. 한 글자씩 찍고, 차단 대사는 클릭해야 넘어갑니다. 프리팹 Prefabs/UI/Dialogue에 붙습니다.</summary>
     public sealed class DialogueView : MonoBehaviour
     {
-        const float CharsPerSec = 42f;
-        const float AmbientHold = 4.5f;
+        private const float CharsPerSec = 42f;
+        private const float AmbientHold = 4.5f;
 
-        sealed class Item
+        private sealed class Item
         {
-            public string Who, Text;
+            public string Speaker, Text;
             public bool Block;
         }
 
-        [SerializeField] Button _cardBtn;
-        [SerializeField] Image _face;
-        [SerializeField] Text _faceTxt, _who, _txt, _sizer, _more;
-        [SerializeField] UiButton _skip;
+        [SerializeField] private Button _cardButton;
+        [SerializeField] private Image _face;
+        [SerializeField] private Text _faceLabel, _speaker, _text, _sizer, _more;
+        [SerializeField] private UiButton _skip;
 
-        readonly List<Item> _q = new List<Item>();
-        Item _cur;
-        float _shown, _timer;
-        int _shownChars;
-        float _canvasW = 1280f, _bottomInset = 80f;
+        private readonly List<Item> _queue = new List<Item>();
+        private Item _current;
+        private float _shown, _timer;
+        private int _shownChars;
+        private float _canvasWidth = 1280f, _bottomInset = 80f;
 
-        RectTransform Rt => (RectTransform)transform;
+        private RectTransform RectTransform => (RectTransform)transform;
 
         /// <summary>차단 대사가 표시 중인지 여부입니다.</summary>
-        public bool Blocking => _cur != null && _cur.Block;
+        public bool Blocking => _current != null && _current.Block;
 
         /// <summary>표시 중인 대사가 있는지 여부입니다.</summary>
-        public bool Active => _cur != null;
+        public bool Active => _current != null;
 
-        void Awake()
+        private void Awake()
         {
-            _cardBtn.onClick.AddListener(Advance);
+            _cardButton.onClick.AddListener(Advance);
             _skip.Button.onClick.AddListener(Skip);
         }
 
         /// <summary>창 크기와 하단 여백이 바뀌면 다시 배치합니다.</summary>
-        public void Relayout(float canvasW, float bottomInset)
+        public void Relayout(float canvasWidth, float bottomInset)
         {
-            _canvasW = canvasW; _bottomInset = bottomInset;
-            if (_cur != null) Apply();
-            else Pos(Rt, new Vector2(0f, bottomInset + 14f));
+            _canvasWidth = canvasWidth;
+            _bottomInset = bottomInset;
+            if (_current != null)
+            {
+                Apply();
+            }
+            else
+            {
+                SetPosition(RectTransform, new Vector2(0f, bottomInset + 14f));
+            }
         }
 
         /// <summary>대사를 큐에 넣습니다. 차단 대사는 앞선 일반 대사를 밀어냅니다.</summary>
         public void Say(string[][] lines, bool block)
         {
-            if (lines == null || lines.Length == 0) return;
+            if (lines == null || lines.Length == 0)
+            {
+                return;
+            }
+
             if (block)
             {
-                _q.RemoveAll(i => !i.Block);
-                if (_cur != null && !_cur.Block) _cur = null;
+                _queue.RemoveAll(i => !i.Block);
+                if (_current != null && !_current.Block)
+                {
+                    _current = null;
+                }
             }
-            else if (_q.Count > 4) return;
+            else if (_queue.Count > 4)
+            {
+                return;
+            }
+
             foreach (var pair in lines)
             {
-                if (pair == null || pair.Length < 2) continue;
-                _q.Add(new Item { Who = pair[0], Text = pair[1], Block = block });
+                if (pair == null || pair.Length < 2)
+                {
+                    continue;
+                }
+
+                _queue.Add(new Item { Speaker = pair[0], Text = pair[1], Block = block });
             }
-            if (_cur == null) Next();
+            if (_current == null)
+            {
+                Next();
+            }
         }
 
         /// <summary>대사창 안의 모든 대사를 비웁니다.</summary>
         public void Clear()
         {
-            _q.Clear();
-            _cur = null;
+            _queue.Clear();
+            _current = null;
             Show(gameObject, false);
         }
 
-        void Next()
+        private void Next()
         {
-            if (_q.Count == 0)
+            if (_queue.Count == 0)
             {
-                _cur = null;
+                _current = null;
                 Show(gameObject, false);
                 return;
             }
-            _cur = _q[0];
-            _q.RemoveAt(0);
+            _current = _queue[0];
+            _queue.RemoveAt(0);
             _shown = 0f;
             _shownChars = 0;
             _timer = AmbientHold;
-            Txt(_txt, string.Empty);
+            SetText(_text, string.Empty);
             Show(gameObject, true);
             Apply();
         }
 
-        static void Speaker(string who, out string name, out string face, out Color col)
+        private static void Speaker(string speakerKey, out string name, out string face, out Color color)
         {
-            switch (who)
+            switch (speakerKey)
             {
-                case "gen": name = "이영지 장군"; face = "장"; col = Palette.SpGen; break;
-                case "aide": name = "부관 서하"; face = "서"; col = Palette.SpAide; break;
-                case "msg": name = "황실 전령"; face = "령"; col = Palette.SpMsg; break;
-                default: name = string.Empty; face = string.Empty; col = Palette.Muted; break;
+                case "gen":
+                    name = "이영지 장군";
+                    face = "장";
+                    color = Palette.SpeakerGeneral;
+                    break;
+                case "aide":
+                    name = "부관 서하";
+                    face = "서";
+                    color = Palette.SpeakerAide;
+                    break;
+                case "msg":
+                    name = "황실 전령";
+                    face = "령";
+                    color = Palette.SpeakerMessenger;
+                    break;
+                default:
+                    name = string.Empty;
+                    face = string.Empty;
+                    color = Palette.Muted;
+                    break;
             }
         }
 
-        void Apply()
+        private void Apply()
         {
-            var it = _cur;
-            bool narr = it.Who == "narr";
-            Speaker(it.Who, out string name, out string face, out Color col);
-            float w = Mathf.Min(640f, _canvasW - 32f);
-            float cx = narr ? 14f : 66f, cw = w - cx - 14f;
-            int size = it.Block ? 15 : 14;
+            var item = _current;
+            bool isNarration = item.Speaker == "narr";
+            Speaker(item.Speaker, out string name, out string face, out Color color);
+            float cardWidth = Mathf.Min(640f, _canvasWidth - 32f);
+            float contentX = isNarration ? 14f : 66f, contentWidth = cardWidth - contentX - 14f;
+            int size = item.Block ? 15 : 14;
 
-            Show(_face.gameObject, !narr);
-            Show(_who.gameObject, !narr);
-            if (!narr)
+            Show(_face.gameObject, !isNarration);
+            Show(_speaker.gameObject, !isNarration);
+            if (!isNarration)
             {
-                if (_face.color != col) _face.color = col;
-                Txt(_faceTxt, face);
-                Txt(_who, name);
-                if (_who.color != col) _who.color = col;
+                if (_face.color != color)
+                {
+                    _face.color = color;
+                }
+
+                SetText(_faceLabel, face);
+                SetText(_speaker, name);
+                if (_speaker.color != color)
+                {
+                    _speaker.color = color;
+                }
+
                 SetTop(_face.rectTransform, 14f, 12f, 40f, 40f);
-                SetTop(_who.rectTransform, cx, 10f, cw, 16f);
+                SetTop(_speaker.rectTransform, contentX, 10f, contentWidth, 16f);
             }
 
-            Style(_txt, size, narr);
-            Style(_sizer, size, narr);
-            var txtCol = narr ? Palette.Muted : Palette.Ink;
-            if (_txt.color != txtCol) _txt.color = txtCol;
-            Txt(_sizer, it.Text);
-            float ty = narr ? 12f : 28f;
-            // 높이를 재려면 폭이 먼저 맞아야 함
-            SetTop(_sizer.rectTransform, cx, ty, cw, _sizer.rectTransform.sizeDelta.y);
-            float th = Mathf.Max(24f, Mathf.Ceil(_sizer.preferredHeight));
-            SetTop(_sizer.rectTransform, cx, ty, cw, th);
-            SetTop(_txt.rectTransform, cx, ty, cw, th);
-
-            float h = ty + th + 12f;
-            Show(_more.gameObject, it.Block);
-            Show(_skip.gameObject, it.Block);
-            if (it.Block)
+            Style(_text, size, isNarration);
+            Style(_sizer, size, isNarration);
+            var textColor = isNarration ? Palette.Muted : Palette.Ink;
+            if (_text.color != textColor)
             {
-                SetTop(_more.rectTransform, cx, ty + th + 4f, 160f, 22f);
-                SetTop(_skip.Rt, w - 14f - 64f, ty + th + 4f, 64f, 22f);
-                h = ty + th + 4f + 22f + 10f;
+                _text.color = textColor;
             }
-            Size(Rt, new Vector2(w, Mathf.Max(h, narr ? 0f : 64f)));
-            Pos(Rt, new Vector2(0f, _bottomInset + 14f));
+
+            SetText(_sizer, item.Text);
+            float textY = isNarration ? 12f : 28f;
+            // 높이를 재려면 폭이 먼저 맞아야 함
+            SetTop(_sizer.rectTransform, contentX, textY, contentWidth, _sizer.rectTransform.sizeDelta.y);
+            float textHeight = Mathf.Max(24f, Mathf.Ceil(_sizer.preferredHeight));
+            SetTop(_sizer.rectTransform, contentX, textY, contentWidth, textHeight);
+            SetTop(_text.rectTransform, contentX, textY, contentWidth, textHeight);
+
+            float cardHeight = textY + textHeight + 12f;
+            Show(_more.gameObject, item.Block);
+            Show(_skip.gameObject, item.Block);
+            if (item.Block)
+            {
+                SetTop(_more.rectTransform, contentX, textY + textHeight + 4f, 160f, 22f);
+                SetTop(_skip.RectTransform, cardWidth - 14f - 64f, textY + textHeight + 4f, 64f, 22f);
+                cardHeight = textY + textHeight + 4f + 22f + 10f;
+            }
+            SetSize(RectTransform, new Vector2(cardWidth, Mathf.Max(cardHeight, isNarration ? 0f : 64f)));
+            SetPosition(RectTransform, new Vector2(0f, _bottomInset + 14f));
         }
 
-        static void Style(Text t, int size, bool narr)
+        private static void Style(Text label, int size, bool isNarration)
         {
-            var anchor = narr ? TextAnchor.UpperCenter : TextAnchor.UpperLeft;
-            var style = narr ? FontStyle.Italic : FontStyle.Normal;
-            if (t.fontSize != size) t.fontSize = size;
-            if (t.alignment != anchor) t.alignment = anchor;
-            if (t.fontStyle != style) t.fontStyle = style;
+            var anchor = isNarration ? TextAnchor.UpperCenter : TextAnchor.UpperLeft;
+            var style = isNarration ? FontStyle.Italic : FontStyle.Normal;
+            if (label.fontSize != size)
+            {
+                label.fontSize = size;
+            }
+
+            if (label.alignment != anchor)
+            {
+                label.alignment = anchor;
+            }
+
+            if (label.fontStyle != style)
+            {
+                label.fontStyle = style;
+            }
         }
 
         // 아래 도우미들은 값이 바뀔 때만 대입해 캔버스 갱신을 줄임
-        static void Show(GameObject go, bool on)
+        private static void Show(GameObject targetObject, bool on)
         {
-            if (go.activeSelf != on) go.SetActive(on);
+            if (targetObject.activeSelf != on)
+            {
+                targetObject.SetActive(on);
+            }
         }
 
-        static void Txt(Text t, string s)
+        private static void SetText(Text label, string value)
         {
-            if (t.text != s) t.text = s;
+            if (label.text != value)
+            {
+                label.text = value;
+            }
         }
 
-        static void Pos(RectTransform rt, Vector2 p)
+        private static void SetPosition(RectTransform rectTransform, Vector2 position)
         {
-            if (rt.anchoredPosition != p) rt.anchoredPosition = p;
+            if (rectTransform.anchoredPosition != position)
+            {
+                rectTransform.anchoredPosition = position;
+            }
         }
 
-        static void Size(RectTransform rt, Vector2 s)
+        private static void SetSize(RectTransform rectTransform, Vector2 size)
         {
-            if (rt.sizeDelta != s) rt.sizeDelta = s;
+            if (rectTransform.sizeDelta != size)
+            {
+                rectTransform.sizeDelta = size;
+            }
         }
 
         // 앵커는 프리팹에서 왼쪽 위로 잡혀 있음
-        static void SetTop(RectTransform rt, float x, float y, float w, float h)
+        private static void SetTop(RectTransform rectTransform, float x, float y, float width, float height)
         {
-            Pos(rt, new Vector2(x, -y));
-            Size(rt, new Vector2(w, h));
+            SetPosition(rectTransform, new Vector2(x, -y));
+            SetSize(rectTransform, new Vector2(width, height));
         }
 
         /// <summary>한 글자씩 찍기와 일반 대사 자동 넘김을 진행합니다.</summary>
         public void Tick(float dt)
         {
-            var it = _cur;
-            if (it == null) return;
-            if (_shown < it.Text.Length)
+            var item = _current;
+            if (item == null)
             {
-                _shown = Mathf.Min(it.Text.Length, _shown + dt * CharsPerSec);
-                int n = Mathf.FloorToInt(_shown);
-                if (n != _shownChars)
+                return;
+            }
+
+            if (_shown < item.Text.Length)
+            {
+                _shown = Mathf.Min(item.Text.Length, _shown + dt * CharsPerSec);
+                int visibleCharCount = Mathf.FloorToInt(_shown);
+                if (visibleCharCount != _shownChars)
                 {
-                    _shownChars = n;
-                    _txt.text = it.Text.Substring(0, n);
+                    _shownChars = visibleCharCount;
+                    _text.text = item.Text.Substring(0, visibleCharCount);
                 }
             }
-            else if (!it.Block)
+            else if (!item.Block)
             {
                 _timer -= dt;
-                if (_timer <= 0f) Advance();
+                if (_timer <= 0f)
+                {
+                    Advance();
+                }
             }
         }
 
         /// <summary>글이 덜 찍혔으면 모두 보여주고, 다 찍혔으면 다음 대사로 넘어갑니다.</summary>
         public void Advance()
         {
-            var it = _cur;
-            if (it == null) return;
-            if (_shown < it.Text.Length)
+            var item = _current;
+            if (item == null)
             {
-                _shown = it.Text.Length;
-                _shownChars = it.Text.Length;
-                Txt(_txt, it.Text);
+                return;
+            }
+
+            if (_shown < item.Text.Length)
+            {
+                _shown = item.Text.Length;
+                _shownChars = item.Text.Length;
+                SetText(_text, item.Text);
                 return;
             }
             Next();
@@ -227,8 +314,8 @@ namespace LineDefense.View.Ui
         /// <summary>차단 대사를 모두 건너뜁니다.</summary>
         public void Skip()
         {
-            _q.RemoveAll(i => i.Block);
-            _cur = null;
+            _queue.RemoveAll(i => i.Block);
+            _current = null;
             Next();
         }
     }

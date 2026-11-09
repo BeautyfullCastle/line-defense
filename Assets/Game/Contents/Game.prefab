@@ -45,7 +45,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c877b406591a23347acc50665c5c5db8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: LineDefense.Game::LineDefense.View.GameController
-  _art: {fileID: 11400000, guid: 371cdae754c47054a90677a4d4eb3e2d, type: 2}
+  _worldArt: {fileID: 11400000, guid: 371cdae754c47054a90677a4d4eb3e2d, type: 2}
   _ui: {fileID: 6475710226428685167}
 --- !u!1001 &7976159236296347475
 PrefabInstance:

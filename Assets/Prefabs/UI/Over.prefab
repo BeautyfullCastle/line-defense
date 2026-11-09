@@ -719,7 +719,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3a42e6bff7e5dfb4f84ed6f03e4949b8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: LineDefense.Game::LineDefense.View.Ui.UiButton
-  _btn: {fileID: 8752512880924736947}
+  _button: {fileID: 8752512880924736947}
   _border: {fileID: 7178829435004246641}
   _fill: {fileID: 5297110128367577400}
   _label: {fileID: 7670127575338680704}

@@ -22,7 +22,7 @@ namespace LineDefense.Core
 
     /// <summary>
     /// 밸런스 시트의 코드 상수 모음입니다. 필드 이름은 시트의 "코드 상수" 열과 같습니다.
-    /// 실제 값은 기본 시트(Resources/BalanceSheet.bytes)에서 읽고, 여기 값은 시트를 못 읽거나 시트에 없는 상수에 씁니다.
+    /// 실제 값은 기본 시트(Assets/Game/Contents/Balance/BalanceSheet.bytes)에서 읽고, 여기 값은 시트를 못 읽거나 시트에 없는 상수에 씁니다.
     /// </summary>
     public sealed class Balance
     {
@@ -54,35 +54,47 @@ namespace LineDefense.Core
         /// <summary>시트 "보급 선택지"에서 읽은 행입니다(ID → 행). null이면 Supply의 기본 표를 씁니다.</summary>
         public IReadOnlyDictionary<string, SupplyRow> SupplyRows;
 
-        static readonly Dictionary<string, FieldInfo> fields = BuildFields();
-        static readonly string[] keys = BuildKeys();
+        private static readonly Dictionary<string, FieldInfo> s_fields = BuildFields();
+        private static readonly string[] s_keys = BuildKeys();
 
         // game.js BAL_META에서 정수 여부가 true인 키
-        static readonly HashSet<string> intKeys = new HashSet<string>
+        private static readonly HashSet<string> s_intKeys = new HashSet<string>
         {
             "CART_BASE_CAP", "CART_CAP_UP", "SHOTS_PER_WEAPON", "FORT_CAP", "FORT_START_FOOD", "FORT_START_WEAPON",
             "PROD_CAP", "WH_BASE_CAP", "WH_CAP_STEP", "WH_MAX_LINES", "WH_MIN_TRANSFER", "MON_BASE",
             "UPG_MAX_LV", "ROUTE_EVERY", "ROUTE_MAX",
         };
 
-        static Dictionary<string, FieldInfo> BuildFields()
+        private static Dictionary<string, FieldInfo> BuildFields()
         {
-            var d = new Dictionary<string, FieldInfo>();
-            foreach (var f in typeof(Balance).GetFields(BindingFlags.Public | BindingFlags.Instance))
-                if (f.FieldType == typeof(float)) d[f.Name] = f;
-            return d;
+            var fieldsByName = new Dictionary<string, FieldInfo>();
+            foreach (var fieldInfo in typeof(Balance).GetFields(BindingFlags.Public | BindingFlags.Instance))
+            {
+                if (fieldInfo.FieldType == typeof(float))
+                {
+                    fieldsByName[fieldInfo.Name] = fieldInfo;
+                }
+            }
+
+            return fieldsByName;
         }
 
-        static string[] BuildKeys()
+        private static string[] BuildKeys()
         {
             var list = new List<string>();
-            foreach (var f in typeof(Balance).GetFields(BindingFlags.Public | BindingFlags.Instance))
-                if (f.FieldType == typeof(float)) list.Add(f.Name);
+            foreach (var fieldInfo in typeof(Balance).GetFields(BindingFlags.Public | BindingFlags.Instance))
+            {
+                if (fieldInfo.FieldType == typeof(float))
+                {
+                    list.Add(fieldInfo.Name);
+                }
+            }
+
             return list.ToArray();
         }
 
         /// <summary>모든 키 이름입니다.</summary>
-        public static string[] Keys => keys;
+        public static string[] Keys => s_keys;
 
         /// <summary>값을 복사한 새 인스턴스를 반환합니다.</summary>
         public Balance Clone() => (Balance)MemberwiseClone();
@@ -90,33 +102,59 @@ namespace LineDefense.Core
         /// <summary>이름으로 값을 설정합니다. 없는 키면 false입니다.</summary>
         public bool TrySet(string key, float value)
         {
-            if (key == null || !fields.TryGetValue(key, out var f)) return false;
-            if (intKeys.Contains(key)) value = MathF.Floor(value + .5f);
-            f.SetValue(this, value);
+            if (key == null || !s_fields.TryGetValue(key, out var fieldInfo))
+            {
+                return false;
+            }
+
+            if (s_intKeys.Contains(key))
+            {
+                value = MathF.Floor(value + .5f);
+            }
+
+            fieldInfo.SetValue(this, value);
             return true;
         }
 
         /// <summary>시트에서 읽은 값을 넣고 바뀐 값, 모르는 상수, 빠진 상수를 돌려줍니다.</summary>
         public BalanceApplyResult Apply(IReadOnlyDictionary<string, float> values)
         {
-            var r = new BalanceApplyResult();
-            foreach (var kv in values)
+            var result = new BalanceApplyResult();
+            foreach (var pair in values)
             {
-                if (!TryGet(kv.Key, out float before)) { r.Unknown.Add(kv.Key); continue; }
-                TrySet(kv.Key, kv.Value);
-                TryGet(kv.Key, out float after);
-                if (after != before) r.Changed.Add((kv.Key, before, after));
+                if (!TryGet(pair.Key, out float before))
+                {
+                    result.Unknown.Add(pair.Key);
+                    continue;
+                }
+                TrySet(pair.Key, pair.Value);
+                TryGet(pair.Key, out float after);
+                if (after != before)
+                {
+                    result.Changed.Add((pair.Key, before, after));
+                }
             }
-            foreach (string k in keys) if (!values.ContainsKey(k)) r.Missing.Add(k);
-            return r;
+            foreach (string k in s_keys)
+            {
+                if (!values.ContainsKey(k))
+                {
+                    result.Missing.Add(k);
+                }
+            }
+
+            return result;
         }
 
         /// <summary>이름으로 값을 읽습니다. 없는 키면 false입니다.</summary>
         public bool TryGet(string key, out float value)
         {
             value = 0f;
-            if (key == null || !fields.TryGetValue(key, out var f)) return false;
-            value = (float)f.GetValue(this);
+            if (key == null || !s_fields.TryGetValue(key, out var fieldInfo))
+            {
+                return false;
+            }
+
+            value = (float)fieldInfo.GetValue(this);
             return true;
         }
     }

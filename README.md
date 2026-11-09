@@ -31,7 +31,7 @@
 
 밸런스 값은 기획 시트(xlsx)에서 읽습니다.
 
-- 기본 시트는 `Assets/Resources/BalanceSheet.bytes`입니다. Notion [P1] 프로토 타입 1의 `요새노선도_밸런스_보급선택지.xlsx`를 확장자만 바꿔 넣었습니다. 게임과 SimRunner가 모두 이 파일을 읽습니다.
+- 기본 시트는 `Assets/Game/Contents/Balance/BalanceSheet.bytes`입니다. Notion [P1] 프로토 타입 1의 `요새노선도_밸런스_보급선택지.xlsx`를 확장자만 바꿔 넣었습니다. 게임과 SimRunner가 모두 이 파일을 읽습니다.
 - "밸런스" 시트의 머리글에서 "코드 상수"와 "값" 열을 찾아 읽습니다. 코드 상수 칸이 빈 계산값 행은 건너뜁니다.
 - "보급 선택지" 시트에서 "ID", "값", "등장 가중치", "최대 선택 횟수", "첫 등장 웨이브" 열을 읽습니다. 최대 선택 횟수가 빈 칸이면 제한이 없습니다. 강화 보급(역참 마필 개량, 수레 개조, 창고 확장, 성벽 보수 자재)의 효과 값은 "밸런스" 시트의 상수를 씁니다. `SUP_GOLD_GROW` 행은 군자금 지원의 웨이브당 증가량입니다.
 - 같은 ID가 두 번 있으면 첫 행만 쓰고 경고합니다. 코드에 없는 ID는 무시하고 알림에 개수를 보여 줍니다.
@@ -56,12 +56,15 @@ dotnet test Tools/CoreTests
 | `Assets/Art/Sprites` | 스프라이트 원본 PNG. 흰색으로 그려 두고 코드에서 색을 입힘 (`World`, `Icons`, `UI`) |
 | `Assets/Art/WorldArt.asset`, `IconSet.asset` | 월드 프리팹·스프라이트·메시 머티리얼 목록, UI 아이콘 목록 |
 | `Assets/Art/*.spriteatlasv2` | 월드, UI 스프라이트 아틀라스 |
-| `Assets/Prefabs/Game.prefab` | 게임 루트. `Main` 씬에 배치됨 |
+| `Assets/Game/Contents` | contents-loader가 팩으로 묶는 콘텐츠. `Game.prefab`(게임 루트), `Balance/BalanceSheet.bytes`(기본 밸런스 시트) |
 | `Assets/Prefabs/World` | 월드 프리팹 |
 | `Assets/Prefabs/UI` | UI 프리팹. `Ui.prefab`이 캔버스와 모든 뷰를 묶음. `Items`는 실행 중에 재사용하는 항목 |
 | `Assets/Scripts/Editor/BuildScript.cs` | WebGL 빌드 진입점 |
 | `Tools/SimRunner` | Core를 그대로 컴파일해 봇으로 수백 판을 돌리는 밸런스 시뮬레이터 |
 | `Tools/CoreTests` | Core 단위 테스트(xUnit) |
+| `Assets/Tests/EditMode` | 프리팹과 에셋의 직렬화 참조가 비지 않았는지 확인하는 Unity 테스트 |
+| `Assets/Tests/PlayMode` | 게임을 띄워 버튼이 포인터를 받고 눌리는지 확인하는 Unity 테스트 |
+| `.editorconfig` | Microsoft .NET 코딩 규칙(이름, 중괄호, 한 줄에 문장 하나) |
 | `site/` | 배포용 WebGL 빌드 결과 |
 
 ## 그림과 UI
@@ -72,13 +75,40 @@ dotnet test Tools/CoreTests
 - UI 캔버스는 바뀌는 빈도로 나눴습니다. 월드 글자 캔버스와 UI 캔버스가 있고, UI 캔버스 아래에 머리말, 꼬리말, 설정창, 치트, 팝업, 연출 하위 캔버스가 있습니다. 입력을 받는 하위 캔버스에만 레이캐스터가 있습니다.
 - 노선 칩, 설정창 칸, 보급 선택지, 날아가는 아이콘, 월드 글자는 `Prefabs/UI/Items`의 프리팹을 만들어 두고 재사용합니다.
 
+## 콘텐츠 로딩
+
+애셋은 [contents-loader](https://github.com/BeautyfullCastle/contents-loader) 패키지(`com.h.contents-loader`)로 읽습니다. Resources 폴더는 쓰지 않습니다.
+
+- `Assets/Game/Contents` 아래의 애셋은 경로로 읽습니다. 예: `Content.Load<GameObject>("Game")`.
+- `Main` 씬에는 `Boot`만 있습니다. `Boot`가 `await Content.Download("")`로 팩을 받은 뒤 `Game` 프리팹을 만듭니다. WebGL은 팩을 웹 주소에서 받아야 해서 이 순서가 필요합니다.
+- 프리팹이 쓰는 스프라이트, 글꼴, 셰이더는 패키지가 의존성을 따라가 팩에 넣습니다. 지금은 게임, 밸런스 시트, 셰이더 팩 3개가 앱(StreamingAssets)에 들어갑니다.
+- 에디터 플레이 모드는 빌드 없이 AssetDatabase에서 바로 읽습니다.
+
 ## 빌드와 배포
 
 ```bash
 Unity -batchmode -quit -nographics -projectPath . -buildTarget WebGL -executeMethod BuildScript.BuildWebGL
 ```
 
-빌드 결과는 `Build/WebGL`에 생깁니다. 이를 `site/`로 복사해 `main`에 푸시하면 `.github/workflows/pages.yml`이 Pages로 배포합니다. CI에는 Unity 라이선스가 없어 빌드는 로컬에서 합니다.
+빌드 스크립트는 `ContentsBuilder.BuildPlayer`로 콘텐츠 팩을 먼저 만든 뒤 플레이어를 빌드합니다. 팩 빌드 결과와 리포트는 `ContentsBuild/WebGL`에 생깁니다. 빌드 결과는 `Build/WebGL`에 생깁니다. 이를 `site/`로 복사해 `main`에 푸시하면 `.github/workflows/pages.yml`이 Pages로 배포합니다. CI에는 Unity 라이선스가 없어 빌드는 로컬에서 합니다.
+
+## 테스트
+
+```bash
+dotnet test Tools/CoreTests
+unity test . --mode EditMode --output Temp/editmode.xml --timeout 900
+unity test . --mode PlayMode --output Temp/playmode.xml --timeout 900
+```
+
+Unity 테스트는 에디터가 열려 있지 않을 때 배치 모드로 돕니다. 직렬화 필드 이름을 바꾸면 프리팹에 저장된 키도 같이 바꿔야 합니다. 바꾸지 않으면 EditMode 테스트가 빈 참조로 잡습니다.
+
+## 코드 규칙
+
+`.editorconfig`가 Microsoft .NET 코딩 규칙을 정합니다. 이름은 줄이지 않고 끝까지 씁니다. 밸런스 상수(`FORT_ATK` 등)는 밸런스 시트의 코드 상수 열과 같은 이름이라 대문자 그대로 둡니다.
+
+```bash
+dotnet format LineDefense.Game.csproj --verify-no-changes --severity warn
+```
 
 ## 밸런스 시뮬레이션
 
@@ -90,4 +120,4 @@ dotnet run -c Release --project Tools/SimRunner -- --runs 100 --seed 1
 
 ## 글꼴
 
-NanumGothic (SIL Open Font License 1.1). `Assets/Resources/Fonts/OFL.txt` 참고.
+NanumGothic (SIL Open Font License 1.1). `Assets/Art/Fonts/OFL.txt` 참고.

@@ -3,9 +3,9 @@ namespace LineDefense.Core
     /// <summary>대사 문자열 표입니다. 각 항목은 [화자, 대사] 쌍입니다.</summary>
     public static class LineTexts
     {
-        public static string[] P(string who, string text) => new[] { who, text };
+        public static string[] P(string speaker, string text) => new[] { speaker, text };
 
-        public static string[][] One(string who, string text) => new[] { P(who, text) };
+        public static string[][] One(string speaker, string text) => new[] { P(speaker, text) };
 
         public static readonly string[][] Story =
         {
