@@ -4,21 +4,15 @@ using UnityEngine.UI;
 
 namespace LineDefense.View.Ui
 {
-    /// <summary>월드 위에 얹는 글자를 풀링해 오버레이 캔버스에 배치합니다.</summary>
-    public sealed class WorldLabels
+    /// <summary>월드 위에 얹는 글자를 풀링해 오버레이 캔버스에 배치합니다. 프리팹 Prefabs/UI/WorldLabels에 붙습니다.</summary>
+    public sealed class WorldLabels : MonoBehaviour
     {
-        readonly RectTransform _root;
-        readonly Canvas _canvas;
+        [SerializeField] Canvas _canvas;
+        [SerializeField] Font _regular, _bold;
+        [SerializeField] Text _labelPrefab;
+
         readonly List<Text> _pool = new List<Text>();
         int _used;
-
-        /// <summary>글자가 붙을 캔버스를 지정합니다.</summary>
-        public WorldLabels(Canvas canvas)
-        {
-            _canvas = canvas;
-            _root = UiFactory.Rect(canvas.transform, "WorldLabels");
-            UiFactory.Stretch(_root);
-        }
 
         /// <summary>한 프레임의 배치를 시작합니다.</summary>
         public void Begin() => _used = 0;
@@ -29,21 +23,10 @@ namespace LineDefense.View.Ui
             float sf = _canvas.scaleFactor;
             var sp = cam.WorldToScreen(wx, wy - worldSize * 0.35f);
             if (sp.x < -200f || sp.y < -100f || sp.x > cam.W + 200f || sp.y > cam.H + 100f) return;
-            Text t;
-            if (_used < _pool.Count) t = _pool[_used];
-            else
-            {
-                t = UiFactory.Label(_root, string.Empty, 12, Color.black, false, TextAnchor.MiddleCenter);
-                var rt = t.rectTransform;
-                rt.anchorMin = rt.anchorMax = Vector2.zero;
-                rt.pivot = new Vector2(0.5f, 0.5f);
-                rt.sizeDelta = new Vector2(400f, 40f);
-                t.horizontalOverflow = HorizontalWrapMode.Overflow;
-                _pool.Add(t);
-            }
-            _used++;
+            if (_used >= _pool.Count) _pool.Add(Instantiate(_labelPrefab, transform, false));
+            var t = _pool[_used++];
             if (!t.gameObject.activeSelf) t.gameObject.SetActive(true);
-            var font = bold ? UiFactory.Bold : UiFactory.Regular;
+            var font = bold ? _bold : _regular;
             if (t.font != font) t.font = font;
             int size = Mathf.Max(9, Mathf.RoundToInt(worldSize * cam.S / sf));
             if (t.fontSize != size) t.fontSize = size;

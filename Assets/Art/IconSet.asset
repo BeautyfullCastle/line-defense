@@ -1,0 +1,48 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65e919dda8705f34baff0cff0265a48c, type: 3}
+  m_Name: IconSet
+  m_EditorClassIdentifier: LineDefense.Game::LineDefense.View.Ui.IconSet
+  _entries:
+  - Key: box
+    Sprite: {fileID: 21300000, guid: 7e95e902e8cafaa44bd67f9047cde7f6, type: 3}
+  - Key: cap
+    Sprite: {fileID: 21300000, guid: d3a3fa026adb81b4faab78281754f3e4, type: 3}
+  - Key: capup
+    Sprite: {fileID: 21300000, guid: 8a2092bc3e9bdcf4b89f254517e98204, type: 3}
+  - Key: cart
+    Sprite: {fileID: 21300000, guid: be245f48b91dfc442a5809ee449b4ba8, type: 3}
+  - Key: circle
+    Sprite: {fileID: 21300000, guid: c59e75945842340479a5c6bcbf566c03, type: 3}
+  - Key: circleRing
+    Sprite: {fileID: 21300000, guid: a64aece363fa37c4891015496316bc14, type: 3}
+  - Key: disc
+    Sprite: {fileID: 21300000, guid: 502ddab727a90954c8bcac0df26b74ba, type: 3}
+  - Key: fort
+    Sprite: {fileID: 21300000, guid: 63a0c6c27d74ab44aa84c9fcd934c4c8, type: 3}
+  - Key: gold
+    Sprite: {fileID: 21300000, guid: efc2ef7641080934e876b44d780d94f4, type: 3}
+  - Key: speed
+    Sprite: {fileID: 21300000, guid: 4d60fb90c6415614eb06d5c13e886d85, type: 3}
+  - Key: stable
+    Sprite: {fileID: 21300000, guid: 3fb88acb10d596c4f93ad6fb4bba3002, type: 3}
+  - Key: tri
+    Sprite: {fileID: 21300000, guid: 5f29a94dd8217514a9d83049c07de069, type: 3}
+  - Key: triRing
+    Sprite: {fileID: 21300000, guid: bf972e28dbf50e947a779ab585d0b8ad, type: 3}
+  - Key: wall
+    Sprite: {fileID: 21300000, guid: 39efd90fd6b2a85429b55e24d8fd3778, type: 3}
+  - Key: wh
+    Sprite: {fileID: 21300000, guid: e0c808f54fcea4848a5eb86a71970dc0, type: 3}
+  - Key: whcap
+    Sprite: {fileID: 21300000, guid: 98a550fb7a50e6940a7be62956fe52a2, type: 3}
+  _fallback: {fileID: 21300000, guid: 7e95e902e8cafaa44bd67f9047cde7f6, type: 3}

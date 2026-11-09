@@ -11,9 +11,9 @@ namespace LineDefense.View.Ui
     /// <summary>
     /// 얻은 것이 해당 칸으로 날아 들어가고, 닿는 순간 칸이 튀며 +N이 떠오르게 하는 UI 연출층입니다.
     /// 날아가는 동안의 양은 Pending으로 잡아 두어, 칸의 숫자가 도착할 때 올라가게 합니다.
-    /// 입력을 막지 않으며 실제 시간으로 움직입니다.
+    /// 입력을 막지 않으며 실제 시간으로 움직입니다. 프리팹 Prefabs/UI/FlyLayer에 붙습니다.
     /// </summary>
-    public sealed class FlyLayer
+    public sealed class FlyLayer : MonoBehaviour
     {
         const int MaxItems = 60;
         const int MaxPops = 24;
@@ -27,7 +27,7 @@ namespace LineDefense.View.Ui
             public Image Img;
             public Vector2 From, Ctrl;
             public FlyTarget Target;
-            public float T, Delay, Size;
+            public float T, Delay;
             public int Amount;
             public string Label;
             public Color Col;
@@ -41,23 +41,25 @@ namespace LineDefense.View.Ui
             public float T, Dir;
         }
 
-        readonly RectTransform _root;
-        readonly Func<FlyTarget, RectTransform> _resolve;
+        [SerializeField] Image _iconPrefab;
+        [SerializeField] Text _popPrefab;
+        [SerializeField] IconSet _icons;
+
+        Func<FlyTarget, RectTransform> _resolve;
         readonly List<Item> _items = new List<Item>();
         readonly List<Pop> _pops = new List<Pop>();
+        readonly Stack<Image> _iconPool = new Stack<Image>();
+        readonly Stack<Text> _popPool = new Stack<Text>();
         readonly int[] _pending = new int[6];
         readonly float[] _punch = new float[6];
         readonly Vector3[] _baseScale = new Vector3[6];
 
-        /// <summary>연출층을 만듭니다. resolve는 칸 종류를 실제 RectTransform으로 바꿉니다.</summary>
-        public FlyLayer(Transform parent, Func<FlyTarget, RectTransform> resolve)
+        RectTransform Root => (RectTransform)transform;
+
+        /// <summary>사용 전에 한 번 부릅니다. resolve는 칸 종류를 실제 RectTransform으로 바꿉니다.</summary>
+        public void Init(Func<FlyTarget, RectTransform> resolve)
         {
             _resolve = resolve;
-            _root = UiFactory.Rect(parent, "FlyLayer");
-            UiFactory.Stretch(_root);
-            var cg = _root.gameObject.AddComponent<CanvasGroup>();
-            cg.blocksRaycasts = false;
-            cg.interactable = false;
             for (int i = 0; i < _baseScale.Length; i++) _baseScale[i] = Vector3.one;
         }
 
@@ -76,13 +78,12 @@ namespace LineDefense.View.Ui
                 Arrive(target, amount, label, col);
                 return;
             }
-            var rt = UiFactory.Rect(_root, "Fly");
-            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+            var img = _iconPool.Count > 0 ? _iconPool.Pop() : Instantiate(_iconPrefab, transform, false);
+            var rt = img.rectTransform;
             rt.sizeDelta = new Vector2(size, size);
-            var img = rt.gameObject.AddComponent<Image>();
-            img.sprite = IconFactory.Get(icon);
+            img.sprite = _icons.Get(icon);
             img.color = col;
-            img.raycastTarget = false;
+            img.gameObject.SetActive(true);
             var from = ToLocal(fromScreen);
             var to = TargetLocal(target);
             // 진행 방향 옆으로 휘었다 들어가도록 제어점을 옆으로 밀어 둠
@@ -92,7 +93,7 @@ namespace LineDefense.View.Ui
             var item = new Item
             {
                 Rt = rt, Img = img, From = from, Ctrl = mid + side + new Vector2(0f, 60f), Target = target,
-                T = 0f, Delay = delay, Size = size, Amount = amount, Label = label, Col = col,
+                T = 0f, Delay = delay, Amount = amount, Label = label, Col = col,
             };
             _pending[(int)target] += amount;
             _items.Add(item);
@@ -109,8 +110,8 @@ namespace LineDefense.View.Ui
         /// <summary>모든 연출을 지웁니다.</summary>
         public void Clear()
         {
-            foreach (var it in _items) UnityEngine.Object.Destroy(it.Rt.gameObject);
-            foreach (var p in _pops) UnityEngine.Object.Destroy(p.Rt.gameObject);
+            foreach (var it in _items) ReleaseIcon(it);
+            foreach (var p in _pops) ReleasePop(p);
             _items.Clear();
             _pops.Clear();
             Array.Clear(_pending, 0, _pending.Length);
@@ -125,7 +126,6 @@ namespace LineDefense.View.Ui
         /// <summary>실제 시간 dt만큼 진행합니다.</summary>
         public void Tick(float dt)
         {
-            _root.SetAsLastSibling();
             for (int i = _items.Count - 1; i >= 0; i--)
             {
                 var it = _items[i];
@@ -135,7 +135,7 @@ namespace LineDefense.View.Ui
                 {
                     _pending[(int)it.Target] -= it.Amount;
                     Arrive(it.Target, it.Amount, it.Label, it.Col);
-                    UnityEngine.Object.Destroy(it.Rt.gameObject);
+                    ReleaseIcon(it);
                     _items.RemoveAt(i);
                     continue;
                 }
@@ -159,7 +159,7 @@ namespace LineDefense.View.Ui
                 p.T += dt / PopDur;
                 if (p.T >= 1f)
                 {
-                    UnityEngine.Object.Destroy(p.Rt.gameObject);
+                    ReleasePop(p);
                     _pops.RemoveAt(i);
                     continue;
                 }
@@ -168,6 +168,18 @@ namespace LineDefense.View.Ui
                 c.a = p.T < 0.6f ? 1f : 1f - (p.T - 0.6f) / 0.4f;
                 p.Txt.color = c;
             }
+        }
+
+        void ReleaseIcon(Item it)
+        {
+            it.Img.gameObject.SetActive(false);
+            _iconPool.Push(it.Img);
+        }
+
+        void ReleasePop(Pop p)
+        {
+            p.Txt.gameObject.SetActive(false);
+            _popPool.Push(p.Txt);
         }
 
         void Arrive(FlyTarget target, int amount, string label, Color col)
@@ -182,21 +194,16 @@ namespace LineDefense.View.Ui
         {
             // 처치가 몰릴 때 글자 오브젝트가 끝없이 늘지 않게 막음. 칸은 계속 튐
             if (_pops.Count >= MaxPops) return;
-            var rt = UiFactory.Rect(_root, "Pop");
-            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
-            rt.sizeDelta = new Vector2(160f, 24f);
-            var t = UiFactory.Label(rt, text, 16, col, true, TextAnchor.MiddleCenter);
-            UiFactory.Stretch(t.rectTransform);
-            t.horizontalOverflow = HorizontalWrapMode.Overflow;
-            var outline = t.gameObject.AddComponent<Outline>();
-            outline.effectColor = Palette.WithAlpha(Palette.Panel, 0.9f);
-            outline.effectDistance = new Vector2(1.5f, -1.5f);
+            var t = _popPool.Count > 0 ? _popPool.Pop() : Instantiate(_popPrefab, transform, false);
+            UiFit.Str(t, text);
+            t.color = col;
             // 화면 위쪽 칸(머리말)은 아래로, 아래쪽 칸(꼬리말)은 위로 글자를 띄워 화면 밖으로 나가지 않게 함
             var tl = TargetLocal(target);
             float dir = tl.y > 0f ? -1f : 1f;
             var p = tl + new Vector2(0f, 18f * dir);
-            rt.anchoredPosition = p;
-            _pops.Add(new Pop { Rt = rt, Txt = t, P = p, T = 0f, Dir = dir });
+            t.rectTransform.anchoredPosition = p;
+            t.gameObject.SetActive(true);
+            _pops.Add(new Pop { Rt = t.rectTransform, Txt = t, P = p, T = 0f, Dir = dir });
         }
 
         void Place(Item it)
@@ -217,7 +224,7 @@ namespace LineDefense.View.Ui
 
         Vector2 ToLocal(Vector2 screen)
         {
-            RectTransformUtility.ScreenPointToLocalPointInRectangle(_root, screen, null, out var local);
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(Root, screen, null, out var local);
             return local;
         }
 
