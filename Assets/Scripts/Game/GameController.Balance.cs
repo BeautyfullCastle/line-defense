@@ -36,9 +36,11 @@ namespace LineDefense.View
             }
             ApplyBalance(b);
             string msg = $"밸런스 적용: 기본과 다른 값 {diff.Changed.Count}개 · 새 게임";
-            if (diff.Unknown.Count > 0) msg += $" · 모르는 상수 {diff.Unknown.Count}개";
+            if (diff.Unknown.Count > 0) msg += $" · 모르는 이름 {diff.Unknown.Count}개";
+            if (diff.Warnings.Count > 0) msg += $" · 경고 {diff.Warnings.Count}개";
             _ui.Toast.Show(msg, _ui.CanvasW);
-            Debug.Log(Describe(name, diff));
+            if (diff.Warnings.Count > 0) Debug.LogWarning(Describe(name, diff));
+            else Debug.Log(Describe(name, diff));
         }
 
         // 판 도중 값을 바꾸면 이미 지은 건물의 저장량이 어긋나므로 새 게임으로 시작함
@@ -54,8 +56,9 @@ namespace LineDefense.View
         {
             var sb = new StringBuilder("밸런스 시트 적용: " + name);
             foreach (var ch in diff.Changed) sb.Append($"\n  {ch.Key}: {ch.From} -> {ch.To}");
-            if (diff.Unknown.Count > 0) sb.Append("\n  모르는 상수: ").Append(string.Join(", ", diff.Unknown));
+            if (diff.Unknown.Count > 0) sb.Append("\n  코드에 없는 상수·ID: ").Append(string.Join(", ", diff.Unknown));
             if (diff.Missing.Count > 0) sb.Append("\n  시트에 없어 기본값 유지: ").Append(string.Join(", ", diff.Missing));
+            foreach (string w in diff.Warnings) sb.Append("\n  경고: ").Append(w);
             return sb.ToString();
         }
     }

@@ -87,10 +87,11 @@ namespace SimRunner
             else
             {
                 if (!File.Exists(sheet)) { Console.Error.WriteLine("sheet not found: " + sheet); return null; }
-                if (!BalanceSheet.TryRead(File.ReadAllBytes(sheet), out var values, out string err)) { Console.Error.WriteLine("sheet error: " + err); return null; }
-                var res = balance.Apply(values);
+                if (!BalanceSheet.TryRead(File.ReadAllBytes(sheet), out var data, out string err)) { Console.Error.WriteLine("sheet error: " + err); return null; }
+                var res = BalanceSheet.ApplyTo(balance, data);
                 string unknown = res.Unknown.Count > 0 ? ", unknown " + string.Join(", ", res.Unknown) : string.Empty;
-                Console.WriteLine("sheet " + sheet + ": " + values.Count + " values" + unknown);
+                Console.WriteLine("sheet " + sheet + ": " + data.Values.Count + " values, " + (data.Supply?.Count ?? 0) + " supply rows" + unknown);
+                foreach (string w in res.Warnings) Console.WriteLine("  warning: " + w);
             }
             foreach (string s in sets)
             {

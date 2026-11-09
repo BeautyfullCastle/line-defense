@@ -22,7 +22,7 @@ namespace LineDefense.Core
         public Balance B;
         public IReadOnlyDictionary<string, SupplyDef> Sup;
         /// <summary>군자금 지원의 웨이브당 증가량입니다.</summary>
-        public float SupGoldGrow = Supply.SupGoldGrow;
+        public float SupGoldGrow;
 
         // 상태
         public float T, HW, D;
@@ -61,7 +61,7 @@ namespace LineDefense.Core
         {
             B = b ?? new Balance();
             rng = seed == 0 ? new Random() : new Random(seed);
-            Sup = Supply.Build();
+            Sup = Supply.Build(B.SupplyRows, out SupGoldGrow);
             BuildRewards();
             NewGame();
         }
