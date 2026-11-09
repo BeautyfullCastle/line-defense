@@ -25,7 +25,23 @@
 | Enter | 대사 넘기기 |
 | F1, ` | 치트 패널 |
 
-치트 패널에는 골드, 건설 권한, 성벽 회복, 무적, 침공 시작, 몬스터 전멸, 웨이브 클리어와 스킵, 5/10/20배속, 자동 플레이(봇)가 있습니다.
+치트 패널에는 골드, 건설 권한, 성벽 회복, 무적, 침공 시작, 몬스터 전멸, 웨이브 클리어와 스킵, 5/10/20배속, 자동 플레이(봇), 밸런스 시트 불러오기가 있습니다.
+
+## 밸런스 시트
+
+밸런스 값은 기획 시트(xlsx)에서 읽습니다.
+
+- 기본 시트는 `Assets/Resources/BalanceSheet.bytes`입니다. 확장자만 다른 xlsx 파일입니다. 게임과 SimRunner가 모두 이 파일을 읽습니다.
+- "밸런스" 시트의 머리글에서 "코드 상수"와 "값" 열을 찾아 읽습니다. 코드 상수 칸이 빈 계산값 행은 건너뜁니다.
+- 시트에 없는 상수는 `Assets/Scripts/Core/Balance.cs`의 값을 씁니다. 지금은 `WH_RESERVE`, `WH_MIN_TRANSFER`가 그렇습니다.
+- 기본 밸런스를 바꾸려면 기본 시트 파일을 새 xlsx로 바꿉니다.
+- 플레이 중에 시험하려면 치트 패널의 "밸런스 불러오기"로 xlsx를 고릅니다. 값을 적용하고 새 게임으로 시작합니다. 불러온 값은 브라우저에 남고, "밸런스 기본값"을 누르면 기본 시트로 돌아갑니다.
+
+시트 읽기 테스트:
+
+```bash
+dotnet test Tools/CoreTests
+```
 
 ## 구조
 
@@ -35,6 +51,7 @@
 | `Assets/Scripts/Game` | 렌더링(도형 메시), 입력, uGUI 화면. 빈 씬에서 코드로 전부 생성 |
 | `Assets/Scripts/Editor/BuildScript.cs` | WebGL 빌드 진입점 |
 | `Tools/SimRunner` | Core를 그대로 컴파일해 봇으로 수백 판을 돌리는 밸런스 시뮬레이터 |
+| `Tools/CoreTests` | Core 단위 테스트(xUnit) |
 | `site/` | 배포용 WebGL 빌드 결과 |
 
 ## 빌드와 배포
@@ -51,7 +68,7 @@ Unity -batchmode -quit -nographics -projectPath . -buildTarget WebGL -executeMet
 dotnet run -c Release --project Tools/SimRunner -- --runs 100 --seed 1
 ```
 
-`--set KEY=VALUE`로 `Balance` 값을 바꿔 볼 수 있고, `--trace`는 10초마다 노선과 요새 재고를 출력합니다. 현재 값에서 봇은 100판 평균 12.0웨이브(중앙값 11, 최소 5, 최대 19)까지 버팁니다. 봇은 더 이을 것이 없으면 요새가 있는 노선을 순환으로 닫습니다.
+기본으로 기본 시트를 읽습니다. `--sheet 파일.xlsx`로 다른 시트를 읽고, `--no-sheet`는 `Balance.cs` 값만 씁니다. `--set KEY=VALUE`는 시트 값 위에 덮어씁니다. `--trace`는 10초마다 노선과 요새 재고를 출력합니다. 현재 기본 시트에서 봇은 100판 평균 5.3웨이브(중앙값 5, 최소 1, 최대 10)까지 버팁니다. 봇은 더 이을 것이 없으면 요새가 있는 노선을 순환으로 닫습니다.
 
 ## 글꼴
 

@@ -176,6 +176,8 @@ namespace LineDefense.View
             c.OnSpeed = s => _speed = s;
             c.OnAuto = () => _auto = !_auto;
             c.OnNewGame = StartNewGame;
+            c.OnBalanceLoad = PickBalance;
+            c.OnBalanceReset = ResetBalance;
         }
     }
 }
