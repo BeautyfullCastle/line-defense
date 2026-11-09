@@ -18,6 +18,7 @@ namespace LineDefense.View.Ui
         public DialogueView Dialogue { get; }
         public ToastView Toast { get; }
         public RewardView Reward { get; }
+        public RewardBannerView RewardBanner { get; }
         public HelpView Help { get; }
         public OverView Over { get; }
 
@@ -55,6 +56,7 @@ namespace LineDefense.View.Ui
             Dialogue = new DialogueView(t);
             Toast = new ToastView(t);
             Reward = new RewardView(t);
+            RewardBanner = new RewardBannerView(t);
             Help = new HelpView(t);
             Over = new OverView(t);
         }

@@ -17,6 +17,7 @@ namespace LineDefense.View
         readonly ShapeBatch b = new ShapeBatch("World");
         readonly List<Vector2> pts = new List<Vector2>(64);
         readonly List<Vector2> pts2 = new List<Vector2>(64);
+        readonly List<Vec2> _centroidPs = new List<Vec2>(16);
         readonly List<(Vec2 pos, Vec2 endPos, Vec2 dir, LineEnd end, Line line)> _handles = new List<(Vec2 pos, Vec2 endPos, Vec2 dir, LineEnd end, Line line)>(2);
         CameraFit _camForLabels;
 
@@ -163,16 +164,6 @@ namespace LineDefense.View
             }
         }
 
-        /// <summary>두 정거장 사이에 쓰는 직각 꺾임점(45도 구간)을 구합니다. 꺾지 않으면 false입니다.</summary>
-        public static bool Bend(Vec2 a, Vec2 c, out Vec2 bend)
-        {
-            float dx = c.x - a.x, dy = c.y - a.y, ax = Mathf.Abs(dx), ay = Mathf.Abs(dy);
-            bend = default;
-            if (ax < 1f || ay < 1f || Mathf.Abs(ax - ay) < 1f) return false;
-            bend = ax > ay ? new Vec2(a.x + Mathf.Sign(dx) * (ax - ay), a.y) : new Vec2(a.x, a.y + Mathf.Sign(dy) * (ay - ax));
-            return true;
-        }
-
         void DrawLines(Game g, ViewState v)
         {
             foreach (var l in g.Lines)
@@ -197,10 +188,19 @@ namespace LineDefense.View
             if (endN == null) return;
             int other = tail ? ids[0] : ids[ids.Count - 1];
             var tn = v.DragTarget;
-            Vec2 to = tn != null && (g.CanJoin(dl, tn) || (ids.Count >= 3 && tn.Id == other)) ? tn.Pos : v.DragPos;
+            bool closing = tn != null && ids.Count >= 3 && tn.Id == other;
+            Vec2 to = tn != null && (g.CanJoin(dl, tn) || closing) ? tn.Pos : v.DragPos;
+            // 놓았을 때 Rebuild가 고를 꺾임점과 같게 하려고 목표를 포함한 무게중심을 씀
+            // 순환을 닫을 때는 목표가 이미 노선에 있어 두 번 세지 않음
+            _centroidPs.Clear();
+            foreach (int id in ids) _centroidPs.Add(g.NodeById(id).Pos);
+            if (!closing) _centroidPs.Add(to);
+            var center = Game.Centroid(_centroidPs);
+            // Rebuild와 같은 순서로 구간을 넘김. 머리 쪽은 새 정거장에서 기존 머리로 감
+            Vec2 from = tail ? endN.Pos : to, dest = tail ? to : endN.Pos;
             pts.Clear();
             pts.Add(endN.Pos.ToV());
-            if (Bend(endN.Pos, to, out var bp)) pts.Add(bp.ToV());
+            if (Game.Bend(from, dest, center, out var bp)) pts.Add(bp.ToV());
             pts.Add(to.ToV());
             b.Polyline(pts, 7f, Palette.WithAlpha(Palette.LineColor(dl.ColorIndex), 0.55f), false, false);
         }

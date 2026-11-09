@@ -8,7 +8,10 @@ namespace LineDefense.View
     /// <summary>시뮬레이션 루프, 입력, 모드/드래그 상태, UI 연결을 맡는 최상위 컨트롤러입니다.</summary>
     public sealed partial class GameController : MonoBehaviour
     {
-        const float BotInterval = 0.25f;
+        // 자동 플레이 명령 간격과 보상 고르기 전 대기 시간(실제 초)
+        const float BotInterval = 0.6f;
+        const float RewardDelay = 1.2f;
+        const float BotIdleRecheck = 0.1f;
 
         Game _g;
         Bot _bot;
@@ -23,6 +26,7 @@ namespace LineDefense.View
         int _speed = 1;
         bool _auto;
         float _botT;
+        float _rewardT;
         bool _rewardPending;
         float _fps = 60f;
 
@@ -64,11 +68,13 @@ namespace LineDefense.View
             _fx.Clear();
             _ui.Dialogue.Clear();
             _ui.Reward.Hide();
+            _ui.RewardBanner.Hide();
             _ui.Over.Hide();
             _ui.Help.Hide();
             _ui.Config.Close();
             _rewardPending = false;
             _botT = 0f;
+            _rewardT = 0f;
             ProcessEvents();
         }
 
@@ -85,12 +91,16 @@ namespace LineDefense.View
 
             if (_ui.Reward.IsOpen && _g.Phase != Phase.Reward) _ui.Reward.Hide();
             TryShowReward();
+            // 자동 플레이 간격은 프레임이 느려도 실제 시간을 따르도록 자르지 않은 델타를 씀
+            AutoAct(Time.unscaledDeltaTime);
+            AutoPickReward(Time.unscaledDeltaTime);
             if (_g.Over && !_ui.Over.IsOpen) _ui.Over.Show(_g, _ui.CanvasW);
 
             _fx.Update(simDt);
             _ui.Dialogue.Tick(rdt);
             _ui.Config.Tick(rdt);
             _ui.Toast.Tick(rdt);
+            _ui.RewardBanner.Tick(rdt);
 
             float k = Mathf.Min(1f, rdt * 2.2f);
             _v.HWd += (_g.HW - _v.HWd) * k;
@@ -117,30 +127,39 @@ namespace LineDefense.View
 
         float Simulate(float rdt)
         {
-            if (_g.Phase == Phase.Reward && _auto && !_ui.Dialogue.Blocking)
-            {
-                _bot.Tick();
-                ProcessEvents();
-            }
             if (_paused || IsBlocked()) return 0f;
             float simDt = 0f;
             for (int i = 0; i < _speed; i++)
             {
                 _g.Step(rdt);
                 simDt += rdt;
-                if (_auto)
-                {
-                    _botT += rdt;
-                    while (_botT >= BotInterval)
-                    {
-                        _botT -= BotInterval;
-                        _bot.Tick();
-                    }
-                }
                 ProcessEvents();
                 if (IsBlocked()) break;
             }
             return simDt;
+        }
+
+        // 자동 플레이도 플레이어 입력이 받아지는 동안에만, 실제 시간 BotInterval마다 명령 하나씩 수행함
+        // 배속과 무관하게 화면에서 봇이 무엇을 하는지 따라볼 수 있음
+        void AutoAct(float rdt)
+        {
+            if (!_auto || _paused || IsBlocked()) return;
+            _botT += rdt;
+            if (_botT < BotInterval) return;
+            // 할 일이 없으면 BotIdleRecheck 뒤에 다시 봄
+            _botT = _bot.Act(1) > 0 ? 0f : BotInterval - BotIdleRecheck;
+            ProcessEvents();
+        }
+
+        // 봇도 플레이어처럼 보상 창이 열린 뒤 같은 버튼 경로로만 보상을 고름. 후보를 볼 시간을 둠
+        void AutoPickReward(float rdt)
+        {
+            if (!_auto || !_ui.Reward.IsOpen || _ui.Help.IsOpen || _ui.Dialogue.Blocking) { _rewardT = 0f; return; }
+            _rewardT += rdt;
+            if (_rewardT < RewardDelay) return;
+            _rewardT = 0f;
+            string key = _bot.ChooseReward();
+            if (key != null) _ui.Reward.OnPick(key);
         }
 
         void ProcessEvents()
@@ -193,8 +212,12 @@ namespace LineDefense.View
             _ui.Over.OnRestart = StartNewGame;
             _ui.Reward.OnPick = key =>
             {
+                // 설명에 적용 전 수치가 들어가는 보급이 있어 고르기 전에 문구를 읽어 둠
+                bool valid = _g.Phase == Phase.Reward && _g.RewardChoices.Contains(key);
+                string icon = valid ? _g.RewardIcon(key) : null, title = valid ? _g.RewardTitle(key) : null, desc = valid ? _g.RewardDesc(key) : null;
                 _g.PickReward(key);
                 _ui.Reward.Hide();
+                if (valid) _ui.RewardBanner.Show(icon, title, desc, _auto, _ui.CanvasW);
                 ProcessEvents();
             };
             _ui.Footer.OnBuild = SetMode;
