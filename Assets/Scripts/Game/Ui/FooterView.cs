@@ -98,6 +98,15 @@ namespace LineDefense.View.Ui
             return h;
         }
 
+        /// <summary>건설 버튼의 권한 개수 칩입니다. 날아오는 권한 아이콘이 여기로 들어갑니다.</summary>
+        public RectTransform CountRect(BuildKind k) => (RectTransform)_counts[Array.IndexOf(_kinds, k)].rectTransform.parent;
+
+        /// <summary>마차 적재·속도·창고 보관 안내 글자입니다.</summary>
+        public RectTransform InfoRect => _cartInfo.rectTransform;
+
+        /// <summary>날아오는 중이라 아직 숫자에 넣지 않을 권한 수를 돌려줍니다.</summary>
+        public Func<BuildKind, int> Pending;
+
         /// <summary>토큰 수, 선택 상태, 칩, 안내 문구를 갱신합니다.</summary>
         public void Refresh(Game g, ViewState v)
         {
@@ -111,11 +120,12 @@ namespace LineDefense.View.Ui
             }
 
             int pct = Mathf.RoundToInt(100f * (1f + g.B.CART_SPD_UP * g.CartSpdLv));
-            int key = HashCode.Combine(g.TokStable, g.TokFort, g.TokWarehouse, g.CartCap(), pct, g.WhCap(), g.TokCart);
+            int p0 = Pending?.Invoke(BuildKind.Stable) ?? 0, p1 = Pending?.Invoke(BuildKind.Fort) ?? 0, p2 = Pending?.Invoke(BuildKind.Warehouse) ?? 0;
+            int key = HashCode.Combine(g.TokStable - p0, g.TokFort - p1, g.TokWarehouse - p2, g.CartCap(), pct, g.WhCap(), g.TokCart);
             if (key != _infoKey)
             {
                 _infoKey = key;
-                for (int i = 0; i < 3; i++) _counts[i].text = Token(g, _kinds[i]).ToString();
+                for (int i = 0; i < 3; i++) _counts[i].text = Mathf.Max(0, Token(g, _kinds[i]) - (Pending?.Invoke(_kinds[i]) ?? 0)).ToString();
                 string info = $"마차 적재 <color={InkHex}><b>{g.CartCap()}</b></color> · 속도 <color={InkHex}><b>{pct}%</b></color> · 창고 보관 <color={InkHex}><b>{g.WhCap()}</b></color>";
                 if (g.TokCart > 0) info += $"  <color={InkHex}><b>배치 대기 {g.TokCart}</b></color>";
                 _cartInfo.text = info;
@@ -190,7 +200,7 @@ namespace LineDefense.View.Ui
             }
             if (allShort) return "③ 마굿간에서 농장·대장간·요새로 드래그해 길을 이으세요.";
             if (!lineHasFort) return "노선에 요새가 있어야 마차가 짐을 싣습니다. 길을 요새까지 이으세요.";
-            return "마굿간·창고를 클릭하면 칸 구성을 바꿀 수 있습니다. 길 끝 막대를 반대쪽 끝 정거장에 놓으면 순환 노선이 됩니다.";
+            return "선 중간을 끌어 새 정거장에 놓으면 그 사이에 끼워 넣습니다. 길 끝 막대를 반대쪽 끝 정거장에 놓으면 순환 노선이 됩니다.";
         }
 
         void RebuildChips(Game g)

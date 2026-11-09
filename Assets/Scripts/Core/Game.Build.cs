@@ -131,23 +131,52 @@ namespace LineDefense.Core
             return new Cart { Pos = s.Pos, PointIndex = pi, Dir = 1, Dwell = .3f, SlotFood = line.CartFoodSlots, SlotWeapon = CartCap() - line.CartFoodSlots };
         }
 
-        static bool Bend(Vec2 a, Vec2 b, out Vec2 r)
+        /// <summary>
+        /// 두 정거장 사이의 꺾임점(수평·수직 구간 + 45도 구간)을 구합니다. 꺾지 않으면 false입니다.
+        /// 꺾임점 후보 두 개 중 center에서 먼 쪽을 골라, 노선이 둥글게 바깥으로 부풀게 합니다.
+        /// </summary>
+        public static bool Bend(Vec2 a, Vec2 b, Vec2 center, out Vec2 r)
         {
             float dx = b.x - a.x, dy = b.y - a.y, ax = MathF.Abs(dx), ay = MathF.Abs(dy);
+            float sx = MathF.Sign(dx), sy = MathF.Sign(dy);
             r = default;
             if (ax < 1f || ay < 1f || MathF.Abs(ax - ay) < 1f) return false;
-            r = ax > ay ? new Vec2(a.x + MathF.Sign(dx) * (ax - ay), a.y) : new Vec2(a.x, a.y + MathF.Sign(dy) * (ay - ax));
+            // straight: 곧은 구간 먼저, diag: 45도 구간 먼저
+            Vec2 straight, diag;
+            if (ax > ay)
+            {
+                straight = new Vec2(a.x + sx * (ax - ay), a.y);
+                diag = new Vec2(a.x + sx * ay, b.y);
+            }
+            else
+            {
+                straight = new Vec2(a.x, a.y + sy * (ay - ax));
+                diag = new Vec2(b.x, a.y + sy * ax);
+            }
+            // 두 후보는 구간 중점에 대해 대칭이라 중심이 구간 위에 있으면 비김. 이때는 기존 모양 유지
+            float ds = Vec2.Dist(straight, center), dd = Vec2.Dist(diag, center);
+            r = dd > ds + 1f ? diag : straight;
             return true;
         }
 
-        const float CornerR = 36f;
-        const int CornerSteps = 6;
+        /// <summary>노선 정거장들의 무게중심입니다. 꺾임점을 바깥으로 고를 때 기준으로 씁니다.</summary>
+        public static Vec2 Centroid(IReadOnlyList<Vec2> ps)
+        {
+            if (ps.Count == 0) return default;
+            float x = 0f, y = 0f;
+            foreach (var p in ps) { x += p.x; y += p.y; }
+            return new Vec2(x / ps.Count, y / ps.Count);
+        }
+
+        const float CornerR = 90f;
+        const int CornerSteps = 10;
 
         // 꺾임점을 2차 베지어 호로 바꿈. 마차도 같은 점을 따라가서 그림과 경로가 일치함
+        // 짧은 다리를 거의 다 곡선으로 써서 노선이 둥글게 보이게 함
         static void AddCorner(List<LinePoint> pts, Vec2 from, Vec2 bend, Vec2 to)
         {
             float d0 = Vec2.Dist(bend, from), d1 = Vec2.Dist(bend, to);
-            float r = MathF.Min(CornerR, MathF.Min(d0, d1) * .45f);
+            float r = MathF.Min(CornerR, MathF.Min(d0, d1) * .9f);
             var a = bend + (from - bend) * (r / d0);
             var c = bend + (to - bend) * (r / d1);
             for (int s = 0; s <= CornerSteps; s++)
@@ -164,16 +193,18 @@ namespace LineDefense.Core
             var olds = new List<LinePoint>();
             foreach (var c in line.Carts) olds.Add(c.PointIndex >= 0 && c.PointIndex < line.Points.Count ? line.Points[c.PointIndex] : null);
             var ns = new List<Node>();
-            foreach (int id in line.Nodes) ns.Add(NodeById(id));
+            var ps = new List<Vec2>();
+            foreach (int id in line.Nodes) { var n = NodeById(id); ns.Add(n); ps.Add(n.Pos); }
+            var center = Centroid(ps);
             var pts = new List<LinePoint>();
             for (int i = 0; i < ns.Count; i++)
             {
                 pts.Add(new LinePoint { Pos = ns[i].Pos, NodeId = ns[i].Id });
-                if (i < ns.Count - 1 && Bend(ns[i].Pos, ns[i + 1].Pos, out var b)) AddCorner(pts, ns[i].Pos, b, ns[i + 1].Pos);
+                if (i < ns.Count - 1 && Bend(ns[i].Pos, ns[i + 1].Pos, center, out var b)) AddCorner(pts, ns[i].Pos, b, ns[i + 1].Pos);
             }
             if (line.Loop && ns.Count >= 3)
             {
-                if (Bend(ns[ns.Count - 1].Pos, ns[0].Pos, out var b)) AddCorner(pts, ns[ns.Count - 1].Pos, b, ns[0].Pos);
+                if (Bend(ns[ns.Count - 1].Pos, ns[0].Pos, center, out var b)) AddCorner(pts, ns[ns.Count - 1].Pos, b, ns[0].Pos);
             }
             else line.Loop = false;
             line.Points = pts;

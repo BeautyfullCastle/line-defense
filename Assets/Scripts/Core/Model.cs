@@ -102,6 +102,8 @@ namespace LineDefense.Core
     {
         public Vec2 Pos;
         public float Hp, MaxHp, Speed, Size, Alpha, Hit, Bob;
+        /// <summary>아직 WallHit으로 알리지 않은 성벽 피해 누적량입니다.</summary>
+        public float WallAcc;
     }
 
     /// <summary>몬스터가 들어오는 침투로입니다.</summary>

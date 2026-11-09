@@ -7,7 +7,7 @@ namespace LineDefense.View
     /// <summary>사격선, 파편, 떠오르는 글자 같은 표현 전용 효과를 관리합니다.</summary>
     public sealed class Effects
     {
-        const int MaxShots = 200, MaxParts = 800;
+        const int MaxShots = 200, MaxParts = 800, MaxFloats = 40;
 
         /// <summary>요새에서 목표로 향하는 짧은 사격선입니다.</summary>
         public struct Shot { public Vector2 A, B; public float Life; }
@@ -16,11 +16,14 @@ namespace LineDefense.View
         public struct Part { public Vector2 P, V; public float Life; public Color Col; }
 
         /// <summary>떠오르는 글자입니다.</summary>
-        public struct FloatText { public Vector2 P; public float Life; public string Text; }
+        public struct FloatText { public Vector2 P; public float Life; public string Text; public Color Col; public float Size; }
 
         public readonly List<Shot> Shots = new List<Shot>();
         public readonly List<Part> Parts = new List<Part>();
         public readonly List<FloatText> Floats = new List<FloatText>();
+
+        /// <summary>성벽이 피해를 받은 뒤 성벽 전체가 붉게 물드는 남은 시간입니다.</summary>
+        public float WallGlow;
 
         /// <summary>모든 효과를 지웁니다.</summary>
         public void Clear()
@@ -28,6 +31,7 @@ namespace LineDefense.View
             Shots.Clear();
             Parts.Clear();
             Floats.Clear();
+            WallGlow = 0f;
         }
 
         /// <summary>시뮬레이션 이벤트 중 효과에 해당하는 것을 반영합니다.</summary>
@@ -42,8 +46,24 @@ namespace LineDefense.View
                     Burst(e.A.ToV(), 8);
                     break;
                 case GameEventType.Float:
-                    Floats.Add(new FloatText { P = e.A.ToV(), Life = 1f, Text = e.Text ?? string.Empty });
+                    Floats.Add(new FloatText { P = e.A.ToV(), Life = 1f, Text = e.Text ?? string.Empty, Col = Palette.Food });
                     break;
+                case GameEventType.WallHit:
+                {
+                    // 성벽 안쪽(성 중심 방향)으로 살짝 들여 빨간 -N과 붉은 파편을 띄움
+                    var p = e.A.ToV();
+                    var inward = (new Vector2(0f, Game.RW) - p).normalized;
+                    var at = p + inward * 40f + new Vector2(Random.Range(-10f, 10f), 0f);
+                    if (Floats.Count < MaxFloats)
+                        Floats.Add(new FloatText { P = at, Life = 0.9f, Text = "-" + Mathf.RoundToInt(e.Amount), Col = Palette.Danger, Size = 20f });
+                    for (int i = 0; i < 5 && Parts.Count < MaxParts; i++)
+                    {
+                        float a = Random.value * Mathf.PI * 2f, s = Random.Range(20f, 60f);
+                        Parts.Add(new Part { P = p + inward * 10f, V = new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * s, Life = Random.Range(0.25f, 0.45f), Col = Palette.Danger });
+                    }
+                    WallGlow = 0.45f;
+                    break;
+                }
             }
         }
 
@@ -60,6 +80,7 @@ namespace LineDefense.View
         public void Update(float dt)
         {
             if (dt <= 0f) return;
+            WallGlow = Mathf.Max(0f, WallGlow - dt);
             for (int i = Shots.Count - 1; i >= 0; i--)
             {
                 var s = Shots[i];

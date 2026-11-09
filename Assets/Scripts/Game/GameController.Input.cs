@@ -117,13 +117,17 @@ namespace LineDefense.View
 
             Line line = null;
             LineEnd end = LineEnd.Tail;
+            int seg = -1;
             bool start = HitHandle(wp, out line, out end);
             if (!start && pn != null) start = _g.TryEndForNode(pn, out line, out end);
+            // 정거장이 아닌 선 위를 누르면 그 구간을 끌어 새 정거장을 끼워 넣음
+            if (!start && pn == null) start = _g.HitSegment(wp, HitR * 0.6f, out line, out seg);
             if (start)
             {
                 _v.Dragging = true;
                 _v.DragLine = line;
                 _v.DragEnd = end;
+                _v.DragSeg = seg;
                 _v.DragPos = wp;
                 _v.DragTarget = HitNode(wp);
             }
@@ -140,6 +144,7 @@ namespace LineDefense.View
             {
                 _v.Dragging = false;
                 _v.DragLine = null;
+                _v.DragSeg = -1;
                 OpenConfig(pressed);
                 return;
             }
@@ -147,11 +152,12 @@ namespace LineDefense.View
             var t = HitNode(wp);
             if (t != null && _v.DragLine != null)
             {
-                string msg = _g.DragTo(_v.DragLine, _v.DragEnd, t);
+                string msg = _v.DragSeg >= 0 ? _g.InsertStop(_v.DragLine, _v.DragSeg, t) : _g.DragTo(_v.DragLine, _v.DragEnd, t);
                 if (!string.IsNullOrEmpty(msg)) _ui.Toast.Show(msg, _ui.CanvasW);
             }
             _v.Dragging = false;
             _v.DragLine = null;
+            _v.DragSeg = -1;
             _v.DragTarget = null;
             ProcessEvents();
         }

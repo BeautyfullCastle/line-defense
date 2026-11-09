@@ -81,17 +81,7 @@ namespace LineDefense.Core
                 {
                     if (tail) ids.Add(t.Id); else ids.Insert(0, t.Id);
                     Rebuild(l);
-                    bool hasFort = false, hasProducer = false;
-                    foreach (int id in ids)
-                    {
-                        var ty = NodeById(id).Type;
-                        if (ty == NodeType.Fort) hasFort = true;
-                        if (ty == NodeType.Farm || ty == NodeType.Forge) hasProducer = true;
-                    }
-                    if (t.Type == NodeType.Warehouse && LineCountWith(t.Id) == 2)
-                        Bark("transfer", LineTexts.One("aide", "두 노선이 창고에서 만났습니다. 이제 짐을 넘겨받을 수 있습니다."));
-                    if (hasFort && hasProducer)
-                        Bark("supply", LineTexts.One("aide", "보급로가 열렸습니다. 마차가 짐을 싣기 시작합니다."));
+                    AfterJoin(l, t);
                 }
                 else if (t.Id == prevId && NodeById(endId).Type != NodeType.Stable)
                 {
@@ -100,11 +90,74 @@ namespace LineDefense.Core
                 }
                 else if (t.Type != NodeType.Stable && !ids.Contains(t.Id))
                 {
-                    return t.Type == NodeType.Warehouse
-                        ? "창고에는 노선을 " + WhLimit() + "개까지만 이을 수 있습니다"
-                        : "다른 노선의 농장·대장간입니다 · 노선끼리 짐을 넘기려면 창고가 필요합니다";
+                    return JoinRefusal(t);
                 }
             }
+            return null;
+        }
+
+        void AfterJoin(Line l, Node t)
+        {
+            bool hasFort = false, hasProducer = false;
+            foreach (int id in l.Nodes)
+            {
+                var ty = NodeById(id).Type;
+                if (ty == NodeType.Fort) hasFort = true;
+                if (ty == NodeType.Farm || ty == NodeType.Forge) hasProducer = true;
+            }
+            if (t.Type == NodeType.Warehouse && LineCountWith(t.Id) == 2)
+                Bark("transfer", LineTexts.One("aide", "두 노선이 창고에서 만났습니다. 이제 짐을 넘겨받을 수 있습니다."));
+            if (hasFort && hasProducer)
+                Bark("supply", LineTexts.One("aide", "보급로가 열렸습니다. 마차가 짐을 싣기 시작합니다."));
+        }
+
+        string JoinRefusal(Node t) => t.Type == NodeType.Warehouse
+            ? "창고에는 노선을 " + WhLimit() + "개까지만 이을 수 있습니다"
+            : "다른 노선의 농장·대장간입니다 · 노선끼리 짐을 넘기려면 창고가 필요합니다";
+
+        /// <summary>노선의 구간 수입니다. 구간 i는 Nodes[i]와 다음 정거장 사이이고, 순환이면 마지막 구간이 끝에서 처음으로 갑니다.</summary>
+        public static int SegmentCount(Line l) => l.Nodes.Count < 2 ? 0 : l.Loop ? l.Nodes.Count : l.Nodes.Count - 1;
+
+        /// <summary>p에서 r 안에 있는 가장 가까운 노선 구간을 찾습니다. 그림에 쓰는 곡선 점을 기준으로 잽니다.</summary>
+        public bool HitSegment(Vec2 p, float r, out Line line, out int seg)
+        {
+            line = null; seg = -1;
+            float best = r;
+            foreach (var l in Lines)
+            {
+                var pts = l.Points;
+                if (SegmentCount(l) == 0 || pts.Count < 2) continue;
+                int s = -1, n = l.Loop ? pts.Count : pts.Count - 1;
+                for (int i = 0; i < n; i++)
+                {
+                    var a = pts[i];
+                    if (a.NodeId >= 0) s++;
+                    float d = DistToSegment(p, a.Pos, pts[(i + 1) % pts.Count].Pos);
+                    if (d < best) { best = d; line = l; seg = s; }
+                }
+            }
+            return line != null;
+        }
+
+        static float DistToSegment(Vec2 p, Vec2 a, Vec2 b)
+        {
+            float vx = b.x - a.x, vy = b.y - a.y, len2 = vx * vx + vy * vy;
+            float k = len2 > 0f ? Math.Clamp(((p.x - a.x) * vx + (p.y - a.y) * vy) / len2, 0f, 1f) : 0f;
+            return Vec2.Dist(p, new Vec2(a.x + vx * k, a.y + vy * k));
+        }
+
+        /// <summary>
+        /// 노선 구간 seg 사이에 target을 끼워 넣습니다. a-b 구간에 c를 놓으면 a-c-b가 됩니다.
+        /// 끝을 끌 때와 같은 CanJoin 규칙을 따르며, 안내할 문구가 있으면 반환합니다.
+        /// </summary>
+        public string InsertStop(Line l, int seg, Node target)
+        {
+            if (l == null || target == null || seg < 0 || seg >= SegmentCount(l)) return null;
+            if (l.Nodes.Contains(target.Id)) return null;
+            if (!CanJoin(l, target)) return target.Type == NodeType.Stable ? null : JoinRefusal(target);
+            l.Nodes.Insert(seg + 1, target.Id);
+            Rebuild(l);
+            AfterJoin(l, target);
             return null;
         }
 
