@@ -1,16 +1,17 @@
 using System;
+using H.ContentsLoader;
 using LineDefense.Core;
 using UnityEngine;
 
 namespace LineDefense.View
 {
     /// <summary>
-    /// 게임에 쓸 밸런스 값을 정합니다. 기본 시트(Resources/BalanceSheet.bytes)를 먼저 적용하고,
+    /// 게임에 쓸 밸런스 값을 정합니다. 기본 시트(Contents의 Balance/BalanceSheet.bytes)를 먼저 적용하고,
     /// 치트 패널에서 불러온 시트가 있으면 그 값을 덮어씁니다. 불러온 xlsx는 PlayerPrefs에 남아 새로고침해도 유지됩니다.
     /// </summary>
     public static class BalanceStore
     {
-        const string DefaultResource = "BalanceSheet";
+        const string DefaultSheet = "Balance/BalanceSheet";
         const string PrefSheet = "balance.sheet.xlsx";
         const string PrefName = "balance.sheet.name";
 
@@ -66,7 +67,7 @@ namespace LineDefense.View
         {
             warning = null;
             var b = new Balance();
-            var asset = Resources.Load<TextAsset>(DefaultResource);
+            var asset = Content.Load<TextAsset>(DefaultSheet);
             if (asset == null) { warning = "기본 밸런스 시트가 없어 코드 기본값을 씁니다."; return b; }
             if (BalanceSheet.TryRead(asset.bytes, out var data, out string err))
             {
@@ -74,7 +75,6 @@ namespace LineDefense.View
                 foreach (string w in res.Warnings) Debug.LogWarning("기본 밸런스 시트: " + w);
             }
             else warning = "기본 밸런스 시트를 읽지 못해 코드 기본값을 씁니다. " + err;
-            Resources.UnloadAsset(asset);
             if (warning != null) Debug.LogWarning(warning);
             return b;
         }

@@ -22,7 +22,7 @@ namespace LineDefense.Core
 
     /// <summary>
     /// 밸런스 시트의 코드 상수 모음입니다. 필드 이름은 시트의 "코드 상수" 열과 같습니다.
-    /// 실제 값은 기본 시트(Resources/BalanceSheet.bytes)에서 읽고, 여기 값은 시트를 못 읽거나 시트에 없는 상수에 씁니다.
+    /// 실제 값은 기본 시트(Assets/Game/Contents/Balance/BalanceSheet.bytes)에서 읽고, 여기 값은 시트를 못 읽거나 시트에 없는 상수에 씁니다.
     /// </summary>
     public sealed class Balance
     {

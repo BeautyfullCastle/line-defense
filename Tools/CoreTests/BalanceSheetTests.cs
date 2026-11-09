@@ -26,7 +26,7 @@ namespace CoreTests
         [Fact]
         public void DefaultSheet_HasEveryBalanceKey_AndNoUnknownKey()
         {
-            byte[] bytes = File.ReadAllBytes(RepoFile("Assets/Resources/BalanceSheet.bytes"));
+            byte[] bytes = File.ReadAllBytes(RepoFile("Assets/Game/Contents/Balance/BalanceSheet.bytes"));
             Assert.True(BalanceSheet.TryRead(bytes, out var data, out string err), err);
 
             var res = BalanceSheet.ApplyTo(new Balance(), data);
@@ -38,7 +38,7 @@ namespace CoreTests
         [Fact]
         public void DefaultSheet_HasEverySupplyId()
         {
-            byte[] bytes = File.ReadAllBytes(RepoFile("Assets/Resources/BalanceSheet.bytes"));
+            byte[] bytes = File.ReadAllBytes(RepoFile("Assets/Game/Contents/Balance/BalanceSheet.bytes"));
             Assert.True(BalanceSheet.TryRead(bytes, out var data, out string err), err);
             Assert.NotNull(data.Supply);
             foreach (var s in Supply.Build().Values) Assert.True(data.Supply.ContainsKey(s.Id), s.Id);

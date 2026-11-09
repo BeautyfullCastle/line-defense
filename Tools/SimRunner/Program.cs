@@ -8,13 +8,13 @@ using LineDefense.Core;
 namespace SimRunner
 {
     // dotnet run -c Release --project Tools/SimRunner -- [--runs N] [--seed S] [--maxwave W] [--sheet FILE.xlsx | --no-sheet] [--set KEY=VAL ...] [--verbose]
-    // 기본으로 게임과 같은 Assets/Resources/BalanceSheet.bytes를 읽고, --set은 시트 값 위에 덮어씀
+    // 기본으로 게임과 같은 Assets/Game/Contents/Balance/BalanceSheet.bytes를 읽고, --set은 시트 값 위에 덮어씀
     public static class Program
     {
         const float Dt = .05f;
         const int BotEvery = 5;
         const float MaxTime = 3600f;
-        const string DefaultSheet = "Assets/Resources/BalanceSheet.bytes";
+        const string DefaultSheet = "Assets/Game/Contents/Balance/BalanceSheet.bytes";
 
         public static int Main(string[] args)
         {

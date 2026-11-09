@@ -3,7 +3,8 @@
     "rootNamespace": "LineDefense.Editor",
     "references": [
         "LineDefense.Core",
-        "LineDefense.Game"
+        "LineDefense.Game",
+        "H.ContentsLoader.Editor"
     ],
     "includePlatforms": [
         "Editor"

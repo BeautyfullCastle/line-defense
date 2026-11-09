@@ -27,7 +27,8 @@ public static class BuildScript
                 target = BuildTarget.WebGL,
                 options = BuildOptions.None,
             };
-            var report = BuildPipeline.BuildPlayer(options);
+            // 콘텐츠 팩을 먼저 빌드해 StreamingAssets에 넣음. 플레이어 빌드 콜백 안에서 번들을 빌드하면 Unity가 멈춤
+            var report = H.ContentsLoader.Editor.ContentsBuilder.BuildPlayer(options);
             if (report.summary.result != BuildResult.Succeeded)
             {
                 Debug.LogError($"WebGL 빌드 실패: {report.summary.result}, 오류 {report.summary.totalErrors}개");

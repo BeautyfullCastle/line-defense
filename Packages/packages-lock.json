@@ -1,5 +1,15 @@
 {
   "dependencies": {
+    "com.h.contents-loader": {
+      "version": "https://github.com/BeautyfullCastle/contents-loader.git?path=/Packages/com.h.contents-loader#eea91f152bd6ab5cf662918a25cd32cbbd6e9f2b",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {
+        "com.unity.modules.assetbundle": "1.0.0",
+        "com.unity.modules.unitywebrequest": "1.0.0"
+      },
+      "hash": "eea91f152bd6ab5cf662918a25cd32cbbd6e9f2b"
+    },
     "com.unity.ext.nunit": {
       "version": "2.0.5",
       "depth": 1,
