@@ -50,9 +50,8 @@ namespace LineDefense.View
             WireUi();
 
             // Game 생성자가 NewGame을 이미 호출하므로 화면만 맞춤
-            _g = new Game();
-            _bot = new Bot(_g);
-            ResetView();
+            ApplyBalance(BalanceStore.Load(out string warn));
+            if (warn != null) _ui.Toast.Show(warn, _ui.CanvasW);
         }
 
         void StartNewGame()
@@ -218,7 +217,7 @@ namespace LineDefense.View
 
         void WireUi()
         {
-            _ui.Hud.OnHelp = () => _ui.Help.Show(_ui.CanvasW, _ui.CanvasH);
+            _ui.Hud.OnHelp = () => _ui.Help.Show(_g.B, _ui.CanvasW, _ui.CanvasH);
             _ui.Hud.OnPause = () => _paused = !_paused;
             _ui.Hud.OnSpeed = () => _speed = _speed == 1 ? 2 : _speed == 2 ? 3 : 1;
             _ui.Hud.OnCheat = _ui.Cheat.Toggle;

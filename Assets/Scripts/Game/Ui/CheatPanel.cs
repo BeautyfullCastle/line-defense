@@ -12,10 +12,11 @@ namespace LineDefense.View.Ui
 
         readonly RectTransform _card;
         readonly UiButton _bInvincible, _bAuto, _b5, _b10, _b20;
-        readonly Text _info;
+        readonly Text _info, _balance;
         int _infoKey = int.MinValue;
 
         public Action OnGold, OnTokens, OnHeal, OnInvincible, OnSkipCountdown, OnKillAll, OnWinWave, OnWavePlus5, OnAuto, OnNewGame;
+        public Action OnBalanceLoad, OnBalanceReset;
         public Action<int> OnSpeed;
 
         /// <summary>패널이 보이는지 여부입니다.</summary>
@@ -46,6 +47,11 @@ namespace LineDefense.View.Ui
             y += BtnH + Gap;
 
             _bAuto = Pair(ref y, "자동 플레이 off", () => OnAuto?.Invoke(), "새 게임", () => OnNewGame?.Invoke(), false, true);
+            Pair(ref y, "밸런스 불러오기", () => OnBalanceLoad?.Invoke(), "밸런스 기본값", () => OnBalanceReset?.Invoke());
+
+            _balance = UiFactory.Label(_card, string.Empty, 11, Palette.Muted);
+            Top(_balance.rectTransform, Pad, y, w - Pad * 2f, 16f);
+            y += 16f + 4f;
 
             _info = UiFactory.Label(_card, string.Empty, 11, Palette.Muted);
             Top(_info.rectTransform, Pad, y, w - Pad * 2f, 16f);
@@ -78,6 +84,15 @@ namespace LineDefense.View.Ui
             rt.pivot = new Vector2(0, 1);
             rt.anchoredPosition = new Vector2(x, -y);
             rt.sizeDelta = new Vector2(w, h);
+        }
+
+        /// <summary>지금 쓰는 밸런스 시트 이름을 표시합니다. null이면 기본 시트입니다.</summary>
+        public void SetBalanceSource(string importedName)
+        {
+            const int MaxName = 24;
+            string n = string.IsNullOrEmpty(importedName) ? "기본 시트" : importedName;
+            if (n.Length > MaxName) n = n.Substring(0, MaxName - 1) + "…";
+            _balance.text = "밸런스: " + n;
         }
 
         /// <summary>보임과 숨김을 바꿉니다.</summary>

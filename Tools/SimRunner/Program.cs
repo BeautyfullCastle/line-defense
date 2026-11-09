@@ -1,47 +1,47 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using LineDefense.Core;
 
 namespace SimRunner
 {
-    // dotnet run -c Release --project Tools/SimRunner -- [--runs N] [--seed S] [--maxwave W] [--set KEY=VAL ...] [--verbose]
+    // dotnet run -c Release --project Tools/SimRunner -- [--runs N] [--seed S] [--maxwave W] [--sheet FILE.xlsx | --no-sheet] [--set KEY=VAL ...] [--verbose]
+    // 기본으로 게임과 같은 Assets/Resources/BalanceSheet.bytes를 읽고, --set은 시트 값 위에 덮어씀
     public static class Program
     {
         const float Dt = .05f;
         const int BotEvery = 5;
         const float MaxTime = 3600f;
+        const string DefaultSheet = "Assets/Resources/BalanceSheet.bytes";
 
         public static int Main(string[] args)
         {
             int runs = 10, seed = 1, maxWave = 40;
             bool verbose = false, trace = false;
-            var balance = new Balance();
+            string sheet = FindDefaultSheet();
+            var sets = new List<string>();
             for (int i = 0; i < args.Length; i++)
             {
                 switch (args[i])
                 {
+                    case "--sheet": sheet = args[++i]; break;
+                    case "--no-sheet": sheet = null; break;
                     case "--runs": runs = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                     case "--seed": seed = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                     case "--maxwave": maxWave = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                     case "--verbose": verbose = true; break;
                     case "--trace": trace = verbose = true; break;
-                    case "--set":
-                    {
-                        string[] kv = args[++i].Split('=');
-                        if (kv.Length != 2 || !float.TryParse(kv[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float v) || !balance.TrySet(kv[0], v))
-                        {
-                            Console.Error.WriteLine("bad --set " + args[i] + " (keys: " + string.Join(", ", Balance.Keys) + ")");
-                            return 1;
-                        }
-                        break;
-                    }
+                    case "--set": sets.Add(args[++i]); break;
                     default:
                         Console.Error.WriteLine("unknown argument " + args[i]);
                         return 1;
                 }
             }
+
+            var balance = BuildBalance(sheet, sets);
+            if (balance == null) return 1;
 
             var reached = new List<int>();
             for (int r = 0; r < runs; r++)
@@ -79,6 +79,40 @@ namespace SimRunner
         }
 
         // 10초마다 노선 구성과 요새 재고를 찍어 봇과 밸런스 문제를 추적함
+        // 시트 값을 넣은 뒤 --set 값을 덮어씀. 실패하면 이유를 출력하고 null
+        static Balance BuildBalance(string sheet, List<string> sets)
+        {
+            var balance = new Balance();
+            if (sheet == null) Console.WriteLine("sheet: none (code defaults)");
+            else
+            {
+                if (!File.Exists(sheet)) { Console.Error.WriteLine("sheet not found: " + sheet); return null; }
+                if (!BalanceSheet.TryRead(File.ReadAllBytes(sheet), out var values, out string err)) { Console.Error.WriteLine("sheet error: " + err); return null; }
+                var res = balance.Apply(values);
+                string unknown = res.Unknown.Count > 0 ? ", unknown " + string.Join(", ", res.Unknown) : string.Empty;
+                Console.WriteLine("sheet " + sheet + ": " + values.Count + " values" + unknown);
+            }
+            foreach (string s in sets)
+            {
+                string[] kv = s.Split('=');
+                if (kv.Length == 2 && float.TryParse(kv[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float v) && balance.TrySet(kv[0], v)) continue;
+                Console.Error.WriteLine("bad --set " + s + " (keys: " + string.Join(", ", Balance.Keys) + ")");
+                return null;
+            }
+            return balance;
+        }
+
+        // 현재 폴더부터 위로 올라가며 저장소의 기본 시트를 찾음
+        static string FindDefaultSheet()
+        {
+            for (var d = new DirectoryInfo(Directory.GetCurrentDirectory()); d != null; d = d.Parent)
+            {
+                string p = Path.Combine(d.FullName, DefaultSheet);
+                if (File.Exists(p)) return p;
+            }
+            return null;
+        }
+
         static void PrintTrace(Game g)
         {
             string Short(NodeType t) => t switch { NodeType.Farm => "F", NodeType.Forge => "W", NodeType.Stable => "S", NodeType.Warehouse => "H", _ => "T" };
