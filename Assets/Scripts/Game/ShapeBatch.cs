@@ -4,21 +4,17 @@ using UnityEngine.Rendering;
 
 namespace LineDefense.View
 {
-    /// <summary>도형 종류입니다. 식량/농장은 원, 무기/대장간은 삼각형, 요새는 육각형입니다.</summary>
-    public enum ShapeKind { Circle, Triangle, Hex }
-
     /// <summary>y 아래 방향 월드 좌표로 도형을 쌓아 한 개의 동적 메시로 만드는 즉시 모드 배처입니다.</summary>
     public sealed partial class ShapeBatch
     {
         const float Tau = Mathf.PI * 2f;
 
-        struct Xf { public float a, b, c, d, e, f, s; }
+        struct Xf { public float a, b, c, d, e, f; }
 
         readonly List<Vector3> _verts = new List<Vector3>(1 << 14);
         readonly List<Color> _cols = new List<Color>(1 << 14);
         readonly List<int> _tris = new List<int>(1 << 15);
         readonly Xf[] _stack = new Xf[24];
-        readonly List<Vector2> _tmp = new List<Vector2>(64);
         readonly List<Vector2> _tmp2 = new List<Vector2>(64);
         int _depth;
         Xf _cur;
@@ -26,18 +22,12 @@ namespace LineDefense.View
         /// <summary>업로드 대상 메시입니다.</summary>
         public Mesh Mesh { get; }
 
-        /// <summary>이후 모든 도형의 알파에 곱해지는 값입니다.</summary>
-        public float Alpha = 1f;
-
-        /// <summary>현재 변환의 균등 배율입니다.</summary>
-        public float Scale => _cur.s;
-
         /// <summary>32비트 인덱스 메시를 가진 배처를 만듭니다.</summary>
         public ShapeBatch(string name)
         {
             Mesh = new Mesh { name = name, indexFormat = IndexFormat.UInt32 };
             Mesh.MarkDynamic();
-            _cur = new Xf { a = 1, d = 1, s = 1 };
+            _cur = new Xf { a = 1, d = 1 };
         }
 
         /// <summary>쌓인 도형과 변환을 비웁니다.</summary>
@@ -47,8 +37,7 @@ namespace LineDefense.View
             _cols.Clear();
             _tris.Clear();
             _depth = 0;
-            _cur = new Xf { a = 1, d = 1, s = 1 };
-            Alpha = 1f;
+            _cur = new Xf { a = 1, d = 1 };
         }
 
         /// <summary>쌓인 도형을 메시에 올립니다.</summary>
@@ -74,7 +63,6 @@ namespace LineDefense.View
                 d = -_cur.b * sn + _cur.d * cs,
                 e = _cur.a * x + _cur.c * y + _cur.e,
                 f = _cur.b * x + _cur.d * y + _cur.f,
-                s = _cur.s * scale,
             };
             _cur = n;
         }
@@ -86,7 +74,6 @@ namespace LineDefense.View
         {
             float wx = _cur.a * x + _cur.c * y + _cur.e;
             float wy = _cur.b * x + _cur.d * y + _cur.f;
-            col.a *= Alpha;
             _verts.Add(new Vector3(wx, -wy, 0f));
             _cols.Add(col);
             return _verts.Count - 1;
@@ -97,12 +84,6 @@ namespace LineDefense.View
             _tris.Add(a);
             _tris.Add(b);
             _tris.Add(c);
-        }
-
-        /// <summary>삼각형을 채웁니다.</summary>
-        public void Tri(float ax, float ay, float bx, float by, float cx, float cy, Color col)
-        {
-            Idx(Vtx(ax, ay, col), Vtx(bx, by, col), Vtx(cx, cy, col));
         }
 
         /// <summary>사각형을 채웁니다. 꼭짓점은 순서대로 이어져야 합니다.</summary>
@@ -156,21 +137,6 @@ namespace LineDefense.View
             Idx(c, prev, first);
         }
 
-        /// <summary>부채꼴(반원 포함)을 채웁니다.</summary>
-        public void FillSector(float x, float y, float r, float a0, float a1, Color col)
-        {
-            int segs = Mathf.Max(3, Mathf.CeilToInt(Mathf.Abs(a1 - a0) / Tau * CircleSegs(r)));
-            int c = Vtx(x, y, col);
-            int prev = Vtx(x + Mathf.Cos(a0) * r, y + Mathf.Sin(a0) * r, col);
-            for (int i = 1; i <= segs; i++)
-            {
-                float a = Mathf.Lerp(a0, a1, i / (float)segs);
-                int cur = Vtx(x + Mathf.Cos(a) * r, y + Mathf.Sin(a) * r, col);
-                Idx(c, prev, cur);
-                prev = cur;
-            }
-        }
-
         /// <summary>호를 두께를 주어 그립니다. 끝은 평평합니다.</summary>
         public void StrokeArc(float x, float y, float r, float a0, float a1, float width, Color col)
         {
@@ -190,12 +156,6 @@ namespace LineDefense.View
                 }
                 pi = ii; po = io;
             }
-        }
-
-        /// <summary>원 테두리를 그립니다.</summary>
-        public void StrokeCircle(float x, float y, float r, float width, Color col)
-        {
-            StrokeArc(x, y, r, 0f, Tau, width, col);
         }
 
         /// <summary>선분 하나를 그립니다. round가 참이면 양 끝에 둥근 마감을 붙입니다.</summary>

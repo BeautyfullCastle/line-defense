@@ -5,93 +5,33 @@ using UnityEngine.UI;
 
 namespace LineDefense.View.Ui
 {
-    /// <summary>상단 머리말(제목, 웨이브, 골드, 성벽, 버튼)입니다.</summary>
-    public sealed class HudView
+    /// <summary>상단 머리말(제목, 웨이브, 골드, 성벽, 버튼)입니다. 프리팹 Prefabs/UI/Hud에 붙습니다.</summary>
+    public sealed class HudView : MonoBehaviour
     {
-        const float RowH = 30f;
+        [SerializeField] FlowLayout _flow;
+        [SerializeField] Text _version, _wave, _phaseL, _phase, _routes, _gold, _wallTxt;
+        [SerializeField] RectTransform _barFill;
+        [SerializeField] Image _barFillImg;
+        [SerializeField] UiButton _bHelp, _bPause, _bSpeed, _bCheat;
 
-        readonly FlowPanel _flow = new FlowPanel();
-        readonly Text _wave, _phaseL, _phase, _routes, _gold, _wallTxt;
-        readonly RectTransform _barFill;
         int _key = int.MinValue;
-        readonly Image _barFillImg;
-        readonly UiButton _bPause, _bSpeed, _bCheat;
+        float _wallFlash;
 
         /// <summary>머리말 루트입니다.</summary>
-        public RectTransform Root { get; }
+        public RectTransform Root => (RectTransform)transform;
 
         public Action OnHelp, OnPause, OnSpeed, OnCheat;
 
-        /// <summary>머리말 요소를 모두 만듭니다.</summary>
-        public HudView(Transform parent)
+        void Awake()
         {
-            Root = UiFactory.Rect(parent, "Header");
-            Root.anchorMin = new Vector2(0, 1);
-            Root.anchorMax = new Vector2(1, 1);
-            Root.pivot = new Vector2(0.5f, 1);
-            UiFactory.Fill(Root, Palette.Outside, false, true);
-
-            var title = UiFactory.Label(Root, "요새 노선도", 22, Palette.Ink, true);
-            title.rectTransform.sizeDelta = new Vector2(UiFactory.TextWidth(title.text, 22, true) + 8f, RowH);
-            _flow.Add(title.rectTransform);
             // 배포된 빌드가 어느 버전인지 바로 알 수 있게 제목 옆에 표시
-            string ver = "v" + Application.version;
-            var verLabel = UiFactory.Label(Root, ver, 11, Palette.Muted, true);
-            verLabel.rectTransform.sizeDelta = new Vector2(UiFactory.TextWidth(ver, 11, true) + 12f, RowH);
-            _flow.Add(verLabel.rectTransform);
-
-            _wave = Stat("웨이브", 44f, 40f, out _);
-            _phase = Stat("다음 침공", 56f, 78f, out _phaseL);
-            _routes = Stat("침투로", 44f, 30f, out _);
-            _gold = Stat("골드", 32f, 56f, out _);
-
-            var wall = UiFactory.Rect(Root, "Wall");
-            wall.sizeDelta = new Vector2(196f, RowH);
-            var wl = UiFactory.Label(wall, "성벽", 11, Palette.Muted, true);
-            Place(wl.rectTransform, 0f, 30f);
-            var bar = UiFactory.Rect(wall, "Bar");
-            Place(bar, 32f, 90f, 8f);
-            UiFactory.Fill(bar, Palette.Line, true, false);
-            _barFill = UiFactory.Rect(bar, "Fill");
-            _barFill.anchorMin = Vector2.zero;
-            _barFill.anchorMax = Vector2.one;
-            _barFill.offsetMin = _barFill.offsetMax = Vector2.zero;
-            _barFillImg = UiFactory.Fill(_barFill, Palette.Ink, false, false);
-            _wallTxt = UiFactory.Label(wall, "100/100", 16, Palette.Ink, true);
-            Place(_wallTxt.rectTransform, 128f, 68f);
-            _flow.Add(wall);
-
-            Btn("도움말", 64f, () => OnHelp?.Invoke());
-            _bPause = Btn("일시정지", 76f, () => OnPause?.Invoke());
-            _bSpeed = Btn("1×", 48f, () => OnSpeed?.Invoke());
-            _bCheat = Btn("치트", 52f, () => OnCheat?.Invoke());
-        }
-
-        static void Place(RectTransform rt, float x, float w, float h = RowH)
-        {
-            rt.anchorMin = rt.anchorMax = new Vector2(0, 0.5f);
-            rt.pivot = new Vector2(0, 0.5f);
-            rt.anchoredPosition = new Vector2(x, 0f);
-            rt.sizeDelta = new Vector2(w, h);
-        }
-
-        Text Stat(string label, float labelW, float valueW, out Text labelText)
-        {
-            var box = UiFactory.Rect(Root, "Stat_" + label);
-            box.sizeDelta = new Vector2(labelW + valueW, RowH);
-            labelText = UiFactory.Label(box, label, 11, Palette.Muted, true);
-            Place(labelText.rectTransform, 0f, labelW);
-            var val = UiFactory.Label(box, "0", 16, Palette.Ink, true);
-            Place(val.rectTransform, labelW, valueW);
-            _flow.Add(box);
-            return val;
-        }
-
-        UiButton Btn(string label, float w, Action click)
-        {
-            var b = UiFactory.Button(Root, label, click, w, RowH);
-            _flow.Add(b.Rt);
-            return b;
+            _version.text = "v" + Application.version;
+            var vr = _version.rectTransform;
+            vr.sizeDelta = new Vector2(UiFit.Width(_version) + 12f, vr.sizeDelta.y);
+            _bHelp.Button.onClick.AddListener(() => OnHelp?.Invoke());
+            _bPause.Button.onClick.AddListener(() => OnPause?.Invoke());
+            _bSpeed.Button.onClick.AddListener(() => OnSpeed?.Invoke());
+            _bCheat.Button.onClick.AddListener(() => OnCheat?.Invoke());
         }
 
         /// <summary>폭에 맞춰 배치하고 머리말 높이를 돌려줍니다.</summary>
@@ -108,8 +48,6 @@ namespace LineDefense.View.Ui
         /// <summary>성벽 수치 글자 칸입니다.</summary>
         public RectTransform WallRect => _wallTxt.rectTransform;
 
-        float _wallFlash;
-
         /// <summary>성벽이 피해를 받았을 때 막대와 수치를 잠깐 빨갛게 합니다.</summary>
         public void WallHit() => _wallFlash = 0.35f;
 
@@ -119,11 +57,14 @@ namespace LineDefense.View.Ui
         public void Refresh(Game g, bool paused, int speed, int goldPending = 0)
         {
             float ratio = g.WallMax > 0f ? Mathf.Clamp01(g.Wall / g.WallMax) : 0f;
-            _barFill.anchorMax = new Vector2(ratio, 1f);
+            var am = new Vector2(ratio, 1f);
+            if (_barFill.anchorMax != am) _barFill.anchorMax = am;
             _wallFlash = Mathf.Max(0f, _wallFlash - Time.unscaledDeltaTime);
             bool hurt = _wallFlash > 0f;
-            _barFillImg.color = hurt || g.Wall < g.WallMax * 0.35f ? Palette.Danger : Palette.Ink;
-            _wallTxt.color = hurt ? Palette.Danger : Palette.Ink;
+            var barCol = hurt || g.Wall < g.WallMax * 0.35f ? Palette.Danger : Palette.Ink;
+            if (_barFillImg.color != barCol) _barFillImg.color = barCol;
+            var txtCol = hurt ? Palette.Danger : Palette.Ink;
+            if (_wallTxt.color != txtCol) _wallTxt.color = txtCol;
 
             // 표시 값이 바뀐 프레임에만 문자열을 새로 만듦
             float shownGold = Mathf.Max(0f, g.Gold - goldPending);

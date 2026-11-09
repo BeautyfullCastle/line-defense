@@ -1,27 +1,43 @@
+using LineDefense.Core;
 using UnityEngine;
-using UnityEngine.EventSystems;
-using UnityEngine.UI;
 
 namespace LineDefense.View.Ui
 {
-    /// <summary>캔버스, 이벤트 시스템, 모든 UI 뷰를 만들고 화면 크기에 맞춰 배치합니다.</summary>
-    public sealed class UiRoot
+    /// <summary>
+    /// UI 뷰들을 묶고 화면 크기에 맞춰 배치합니다. 프리팹 Prefabs/UI/Ui에 붙습니다.
+    /// 캔버스는 바뀌는 빈도로 나눕니다. 월드 글자 캔버스와 UI 캔버스가 있고, UI 캔버스 아래에
+    /// 머리말·꼬리말·패널·팝업·연출 하위 캔버스를 둬서 한 곳이 바뀌어도 그 하위 캔버스만 다시 그립니다.
+    /// </summary>
+    public sealed class UiRoot : MonoBehaviour
     {
+        [SerializeField] Canvas _canvas;
+        [SerializeField] HudView _hud;
+        [SerializeField] FooterView _footer;
+        [SerializeField] ConfigPanel _config;
+        [SerializeField] CheatPanel _cheat;
+        [SerializeField] DialogueView _dialogue;
+        [SerializeField] ToastView _toast;
+        [SerializeField] RewardView _reward;
+        [SerializeField] RewardBannerView _banner;
+        [SerializeField] HelpView _help;
+        [SerializeField] OverView _over;
+        [SerializeField] FlyLayer _fly;
+        [SerializeField] WorldLabels _labels;
+
         float _w, _h, _sf;
 
-        public Canvas Canvas { get; }
-        public Canvas LabelCanvas { get; }
-        public HudView Hud { get; }
-        public FooterView Footer { get; }
-        public ConfigPanel Config { get; }
-        public CheatPanel Cheat { get; }
-        public DialogueView Dialogue { get; }
-        public ToastView Toast { get; }
-        public RewardView Reward { get; }
-        public RewardBannerView RewardBanner { get; }
-        public HelpView Help { get; }
-        public OverView Over { get; }
-        public FlyLayer Fly { get; }
+        public HudView Hud => _hud;
+        public FooterView Footer => _footer;
+        public ConfigPanel Config => _config;
+        public CheatPanel Cheat => _cheat;
+        public DialogueView Dialogue => _dialogue;
+        public ToastView Toast => _toast;
+        public RewardView Reward => _reward;
+        public RewardBannerView RewardBanner => _banner;
+        public HelpView Help => _help;
+        public OverView Over => _over;
+        public FlyLayer Fly => _fly;
+        public WorldLabels Labels => _labels;
 
         /// <summary>캔버스 가로 크기(캔버스 단위)입니다.</summary>
         public float CanvasW { get; private set; } = 1280f;
@@ -39,79 +55,47 @@ namespace LineDefense.View.Ui
         public float HeaderUnits { get; private set; }
 
         /// <summary>캔버스 단위 하나가 차지하는 화면 픽셀 수입니다.</summary>
-        public float ScaleFactor => Canvas.scaleFactor;
+        public float ScaleFactor => _canvas.scaleFactor;
 
-        /// <summary>UI 전체를 만듭니다.</summary>
-        public UiRoot(Transform parent)
+        /// <summary>뷰 사이 연결을 맺습니다. 다른 컴포넌트의 Awake 순서에 기대지 않도록 GameController가 먼저 부릅니다.</summary>
+        public void Init()
         {
-            LabelCanvas = MakeCanvas(parent, "LabelCanvas", 0, false);
-            Canvas = MakeCanvas(parent, "UiCanvas", 10, true);
-            var es = new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
-            es.transform.SetParent(parent, false);
-
-            var t = Canvas.transform;
-            Hud = new HudView(t);
-            Footer = new FooterView(t);
-            Config = new ConfigPanel(t);
-            Cheat = new CheatPanel(t);
-            Dialogue = new DialogueView(t);
-            Toast = new ToastView(t);
-            Reward = new RewardView(t);
-            RewardBanner = new RewardBannerView(t);
-            Help = new HelpView(t);
-            Over = new OverView(t);
-            Fly = new FlyLayer(t, Resolve);
-            Footer.Pending = k => Fly.Pending(k == LineDefense.Core.BuildKind.Stable ? FlyTarget.Stable
-                : k == LineDefense.Core.BuildKind.Fort ? FlyTarget.Fort : FlyTarget.Warehouse);
+            _fly.Init(Resolve);
+            _footer.Pending = k => _fly.Pending(k == BuildKind.Stable ? FlyTarget.Stable
+                : k == BuildKind.Fort ? FlyTarget.Fort : FlyTarget.Warehouse);
         }
 
         RectTransform Resolve(FlyTarget t)
         {
             switch (t)
             {
-                case FlyTarget.Gold: return Hud.GoldRect;
-                case FlyTarget.Wall: return Hud.WallRect;
-                case FlyTarget.Stable: return Footer.CountRect(LineDefense.Core.BuildKind.Stable);
-                case FlyTarget.Fort: return Footer.CountRect(LineDefense.Core.BuildKind.Fort);
-                case FlyTarget.Warehouse: return Footer.CountRect(LineDefense.Core.BuildKind.Warehouse);
-                default: return Footer.InfoRect;
+                case FlyTarget.Gold: return _hud.GoldRect;
+                case FlyTarget.Wall: return _hud.WallRect;
+                case FlyTarget.Stable: return _footer.CountRect(BuildKind.Stable);
+                case FlyTarget.Fort: return _footer.CountRect(BuildKind.Fort);
+                case FlyTarget.Warehouse: return _footer.CountRect(BuildKind.Warehouse);
+                default: return _footer.InfoRect;
             }
-        }
-
-        static Canvas MakeCanvas(Transform parent, string name, int order, bool raycast)
-        {
-            var go = new GameObject(name, typeof(RectTransform));
-            go.transform.SetParent(parent, false);
-            var c = go.AddComponent<Canvas>();
-            c.renderMode = RenderMode.ScreenSpaceOverlay;
-            c.sortingOrder = order;
-            var s = go.AddComponent<CanvasScaler>();
-            s.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            s.referenceResolution = new Vector2(1280f, 720f);
-            s.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-            s.matchWidthOrHeight = 0.5f;
-            if (raycast) go.AddComponent<GraphicRaycaster>();
-            return c;
         }
 
         /// <summary>화면 크기나 꼬리말 내용이 바뀌었을 때만 머리말, 꼬리말과 떠 있는 패널을 다시 배치합니다.</summary>
         public void UpdateLayout()
         {
-            var rt = (RectTransform)Canvas.transform;
-            float w = rt.rect.width, h = rt.rect.height, sf = Canvas.scaleFactor;
+            var rt = (RectTransform)_canvas.transform;
+            float w = rt.rect.width, h = rt.rect.height, sf = _canvas.scaleFactor;
             if (w < 10f || h < 10f) return;
             bool resized = !Mathf.Approximately(w, _w) || !Mathf.Approximately(h, _h) || !Mathf.Approximately(sf, _sf);
-            if (!resized && !Footer.NeedsLayout) return;
+            if (!resized && !_footer.NeedsLayout) return;
             _w = w; _h = h; _sf = sf;
             CanvasW = w; CanvasH = h;
-            HeaderUnits = Hud.Layout(w);
-            float fh = Footer.Layout(w);
+            HeaderUnits = _hud.Layout(w);
+            float fh = _footer.Layout(w);
             HeaderPx = HeaderUnits * sf;
             FooterPx = fh * sf;
-            Config.Relayout(w, HeaderUnits);
-            Dialogue.Relayout(w, fh);
-            Toast.SetTop(HeaderUnits);
-            Cheat.SetTop(HeaderUnits);
+            _config.Relayout(w, HeaderUnits);
+            _dialogue.Relayout(w, fh);
+            _toast.SetTop(HeaderUnits);
+            _cheat.SetTop(HeaderUnits);
         }
     }
 }

@@ -14,6 +14,7 @@ namespace LineDefense.View
         const float BotIdleRecheck = 0.1f;
 
         [SerializeField] WorldArt _art;
+        [SerializeField] UiRoot _ui;
 
         Game _g;
         Bot _bot;
@@ -22,7 +23,6 @@ namespace LineDefense.View
         CameraFit _cam;
         WorldRenderer _world;
         WorldLabels _labels;
-        UiRoot _ui;
 
         bool _paused;
         int _speed = 1;
@@ -47,8 +47,8 @@ namespace LineDefense.View
             _v = new ViewState();
             _fx = new Effects();
             _world = new WorldRenderer(transform, _art);
-            _ui = new UiRoot(transform);
-            _labels = new WorldLabels(_ui.LabelCanvas);
+            _ui.Init();
+            _labels = _ui.Labels;
             WireUi();
 
             // Game 생성자가 NewGame을 이미 호출하므로 화면만 맞춤

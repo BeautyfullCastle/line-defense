@@ -50,11 +50,27 @@ dotnet test Tools/CoreTests
 | 경로 | 내용 |
 |---|---|
 | `Assets/Scripts/Core` | UnityEngine에 의존하지 않는 시뮬레이션(`Game`), 밸런스 값(`Balance`), 자동 플레이 봇(`Bot`) |
-| `Assets/Scripts/Game` | 렌더링(도형 메시), 입력, uGUI 화면. 빈 씬에서 코드로 전부 생성 |
+| `Assets/Scripts/Game` | 입력, 월드 그리기, uGUI 뷰 컴포넌트 |
+| `Assets/Scripts/Game/World` | 건물·마차·몬스터·굴·건설 미리보기 프리팹의 뷰 컴포넌트 |
+| `Assets/Scripts/Game/Ui` | 화면 UI 뷰 컴포넌트(머리말, 꼬리말, 설정창, 보급, 대사 등) |
+| `Assets/Art/Sprites` | 스프라이트 원본 PNG. 흰색으로 그려 두고 코드에서 색을 입힘 (`World`, `Icons`, `UI`) |
+| `Assets/Art/WorldArt.asset`, `IconSet.asset` | 월드 프리팹·스프라이트·메시 머티리얼 목록, UI 아이콘 목록 |
+| `Assets/Art/*.spriteatlasv2` | 월드, UI 스프라이트 아틀라스 |
+| `Assets/Prefabs/Game.prefab` | 게임 루트. `Main` 씬에 배치됨 |
+| `Assets/Prefabs/World` | 월드 프리팹 |
+| `Assets/Prefabs/UI` | UI 프리팹. `Ui.prefab`이 캔버스와 모든 뷰를 묶음. `Items`는 실행 중에 재사용하는 항목 |
 | `Assets/Scripts/Editor/BuildScript.cs` | WebGL 빌드 진입점 |
 | `Tools/SimRunner` | Core를 그대로 컴파일해 봇으로 수백 판을 돌리는 밸런스 시뮬레이터 |
 | `Tools/CoreTests` | Core 단위 테스트(xUnit) |
 | `site/` | 배포용 WebGL 빌드 결과 |
+
+## 그림과 UI
+
+- 모양이 정해진 그림(건물, 마차, 몬스터, 굴, 자원 칸, 아이콘, 둥근 사각형)은 `Assets/Art/Sprites`의 PNG입니다. 같은 이름의 파일로 바꾸면 게임에 바로 반영됩니다.
+- 플레이에 따라 모양이 바뀌는 것(땅, 성벽, 침투로, 노선, 사거리, 효과)은 코드가 메시 세 장(바닥, 노선, 효과)으로 만들고, 머티리얼은 `Assets/Art/Materials/WorldMesh.mat`입니다.
+- 색은 `Palette`에서 정하고 스프라이트에 입힙니다.
+- UI 캔버스는 바뀌는 빈도로 나눴습니다. 월드 글자 캔버스와 UI 캔버스가 있고, UI 캔버스 아래에 머리말, 꼬리말, 설정창, 치트, 팝업, 연출 하위 캔버스가 있습니다. 입력을 받는 하위 캔버스에만 레이캐스터가 있습니다.
+- 노선 칩, 설정창 칸, 보급 선택지, 날아가는 아이콘, 월드 글자는 `Prefabs/UI/Items`의 프리팹을 만들어 두고 재사용합니다.
 
 ## 빌드와 배포
 
