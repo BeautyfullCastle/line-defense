@@ -13,6 +13,8 @@ namespace LineDefense.View
         const float RewardDelay = 1.2f;
         const float BotIdleRecheck = 0.1f;
 
+        [SerializeField] WorldArt _art;
+
         Game _g;
         Bot _bot;
         ViewState _v;
@@ -44,7 +46,7 @@ namespace LineDefense.View
             _cam = new CameraFit(cam);
             _v = new ViewState();
             _fx = new Effects();
-            _world = new WorldRenderer(transform);
+            _world = new WorldRenderer(transform, _art);
             _ui = new UiRoot(transform);
             _labels = new WorldLabels(_ui.LabelCanvas);
             WireUi();
@@ -63,6 +65,7 @@ namespace LineDefense.View
         void ResetView()
         {
             _v.ClearSelection();
+            _world.Clear();
             _v.HWd = _g.HW;
             _v.Dd = _g.D;
             _fx.Clear();
