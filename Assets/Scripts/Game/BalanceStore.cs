@@ -11,28 +11,35 @@ namespace LineDefense.View
     /// </summary>
     public static class BalanceStore
     {
-        const string DefaultSheet = "Balance/BalanceSheet";
-        const string PrefSheet = "balance.sheet.xlsx";
-        const string PrefName = "balance.sheet.name";
+        private const string DefaultSheet = "Balance/BalanceSheet";
+        private const string PrefSheet = "balance.sheet.xlsx";
+        private const string PrefName = "balance.sheet.name";
 
         /// <summary>지금 쓰는 값의 출처입니다. 기본 시트면 null입니다.</summary>
-        public static string ImportedName { get; private set; }
+        public static string ImportedName
+        {
+            get; private set;
+        }
 
         /// <summary>기본 시트에 불러온 시트를 덮어쓴 밸런스를 만듭니다.</summary>
         public static Balance Load(out string warning)
         {
-            var b = LoadDefault(out warning);
+            var balance = LoadDefault(out warning);
             ImportedName = null;
             string saved = PlayerPrefs.GetString(PrefSheet, string.Empty);
-            if (saved.Length == 0) return b;
+            if (saved.Length == 0)
+            {
+                return balance;
+            }
+
             if (!TryDecode(saved, out var data))
             {
                 warning = "저장해 둔 밸런스 시트를 읽지 못해 기본 시트를 씁니다.";
-                return b;
+                return balance;
             }
-            BalanceSheet.ApplyTo(b, data);
+            BalanceSheet.ApplyTo(balance, data);
             ImportedName = PlayerPrefs.GetString(PrefName, "불러온 시트");
-            return b;
+            return balance;
         }
 
         /// <summary>
@@ -43,7 +50,11 @@ namespace LineDefense.View
         {
             balance = null;
             diff = null;
-            if (!BalanceSheet.TryRead(xlsx, out var data, out error)) return false;
+            if (!BalanceSheet.TryRead(xlsx, out var data, out error))
+            {
+                return false;
+            }
+
             balance = LoadDefault(out _);
             diff = BalanceSheet.ApplyTo(balance, data);
             PlayerPrefs.SetString(PrefSheet, Convert.ToBase64String(xlsx));
@@ -63,27 +74,45 @@ namespace LineDefense.View
             return LoadDefault(out warning);
         }
 
-        static Balance LoadDefault(out string warning)
+        private static Balance LoadDefault(out string warning)
         {
             warning = null;
-            var b = new Balance();
+            var balance = new Balance();
             var asset = Content.Load<TextAsset>(DefaultSheet);
-            if (asset == null) { warning = "기본 밸런스 시트가 없어 코드 기본값을 씁니다."; return b; }
-            if (BalanceSheet.TryRead(asset.bytes, out var data, out string err))
+            if (asset == null)
             {
-                var res = BalanceSheet.ApplyTo(b, data);
-                foreach (string w in res.Warnings) Debug.LogWarning("기본 밸런스 시트: " + w);
+                warning = "기본 밸런스 시트가 없어 코드 기본값을 씁니다.";
+                return balance;
             }
-            else warning = "기본 밸런스 시트를 읽지 못해 코드 기본값을 씁니다. " + err;
-            if (warning != null) Debug.LogWarning(warning);
-            return b;
+            if (BalanceSheet.TryRead(asset.bytes, out var data, out string errorMessage))
+            {
+                var result = BalanceSheet.ApplyTo(balance, data);
+                foreach (string sheetWarning in result.Warnings)
+                {
+                    Debug.LogWarning("기본 밸런스 시트: " + sheetWarning);
+                }
+            }
+            else
+            {
+                warning = "기본 밸런스 시트를 읽지 못해 코드 기본값을 씁니다. " + errorMessage;
+            }
+
+            if (warning != null)
+            {
+                Debug.LogWarning(warning);
+            }
+
+            return balance;
         }
 
-        static bool TryDecode(string base64, out BalanceSheetData data)
+        private static bool TryDecode(string base64, out BalanceSheetData data)
         {
             data = null;
             byte[] bytes;
-            try { bytes = Convert.FromBase64String(base64); }
+            try
+            {
+                bytes = Convert.FromBase64String(base64);
+            }
             catch (FormatException) { return false; }
             return BalanceSheet.TryRead(bytes, out data, out _);
         }

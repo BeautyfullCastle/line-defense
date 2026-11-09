@@ -139,7 +139,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 20f4c3c4af00a1042aba903d24a9f69c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: LineDefense.Game::LineDefense.View.ProducerView
-  _res: 0
+  _resource: 0
   _fill: {fileID: 5636571864428691594}
   _ring: {fileID: 759428299263385597}
   _full: {fileID: 8726230359324445886}
@@ -279,7 +279,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ba0eccc19b6e9704f82ff5a5634023b3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: LineDefense.Game::LineDefense.View.PipGroup
-  _art: {fileID: 11400000, guid: 371cdae754c47054a90677a4d4eb3e2d, type: 2}
+  _worldArt: {fileID: 11400000, guid: 371cdae754c47054a90677a4d4eb3e2d, type: 2}
   _order: 23
   Alpha: 1
 --- !u!1 &8632224220585246693

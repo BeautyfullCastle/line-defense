@@ -7,8 +7,8 @@ using UnityEngine;
 /// <summary>WebGL 빌드를 메뉴와 배치 모드에서 실행하는 빌드 스크립트입니다.</summary>
 public static class BuildScript
 {
-    const string ScenePath = "Assets/Scenes/Main.unity";
-    const string OutputDir = "Build/WebGL";
+    private const string ScenePath = "Assets/Scenes/Main.unity";
+    private const string OutputDirectory = "Build/WebGL";
 
     /// <summary>WebGL 플레이어를 Build/WebGL에 빌드합니다. 실패하면 배치 모드에서 종료 코드 1로 끝납니다.</summary>
     [MenuItem("Build/WebGL")]
@@ -18,12 +18,12 @@ public static class BuildScript
         {
             ConfigurePlayerSettings();
             string root = Path.GetDirectoryName(Application.dataPath);
-            string outDir = Path.Combine(root, OutputDir);
-            Directory.CreateDirectory(outDir);
+            string outputDirectory = Path.Combine(root, OutputDirectory);
+            Directory.CreateDirectory(outputDirectory);
             var options = new BuildPlayerOptions
             {
                 scenes = new[] { ScenePath },
-                locationPathName = outDir,
+                locationPathName = outputDirectory,
                 target = BuildTarget.WebGL,
                 options = BuildOptions.None,
             };
@@ -35,7 +35,7 @@ public static class BuildScript
                 Fail();
                 return;
             }
-            Debug.Log($"WebGL 빌드 완료: {outDir} ({report.summary.totalSize} bytes)");
+            Debug.Log($"WebGL 빌드 완료: {outputDirectory} ({report.summary.totalSize} bytes)");
         }
         catch (Exception e)
         {
@@ -44,12 +44,15 @@ public static class BuildScript
         }
     }
 
-    static void Fail()
+    private static void Fail()
     {
-        if (Application.isBatchMode) EditorApplication.Exit(1);
+        if (Application.isBatchMode)
+        {
+            EditorApplication.Exit(1);
+        }
     }
 
-    static void ConfigurePlayerSettings()
+    private static void ConfigurePlayerSettings()
     {
         PlayerSettings.companyName = "BeautyfullCastle";
         PlayerSettings.productName = "요새 노선도";

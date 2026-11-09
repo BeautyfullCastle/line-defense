@@ -505,7 +505,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: LineDefense.Game::LineDefense.View.MonsterView
   _body: {fileID: 4254104953318773641}
-  _eyeL: {fileID: 3943387709137993397}
-  _eyeR: {fileID: 6403981067978785586}
+  _leftEye: {fileID: 3943387709137993397}
+  _rightEye: {fileID: 6403981067978785586}
   _hpBack: {fileID: 966035510143990335}
   _hpFill: {fileID: 3661023570867115331}

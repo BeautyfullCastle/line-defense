@@ -23,13 +23,13 @@ namespace LineDefense.View
 
         [Header("자원 칸 (반지름 16 원·삼각형, 반지름 3.3 테두리)")]
         public Sprite Disc;
-        public Sprite Tri;
+        public Sprite Triangle;
         public Sprite PipRingCircle;
-        public Sprite PipRingTri;
-        public Sprite PipReqCircle;
-        public Sprite PipReqTri;
+        public Sprite PipRingTriangle;
+        public Sprite PipRequestCircle;
+        public Sprite PipRequestTriangle;
         public Sprite PipOverCircle;
-        public Sprite PipOverTri;
+        public Sprite PipOverTriangle;
 
         [Header("기타 도형")]
         public Sprite Square;

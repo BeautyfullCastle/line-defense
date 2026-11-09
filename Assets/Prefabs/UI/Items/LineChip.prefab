@@ -134,7 +134,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3a42e6bff7e5dfb4f84ed6f03e4949b8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: LineDefense.Game::LineDefense.View.Ui.UiButton
-  _btn: {fileID: 8198386971675323116}
+  _button: {fileID: 8198386971675323116}
   _border: {fileID: 6970166381245225843}
   _fill: {fileID: 1311260000536829511}
   _label: {fileID: 776365112768115071}
@@ -526,7 +526,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3a42e6bff7e5dfb4f84ed6f03e4949b8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: LineDefense.Game::LineDefense.View.Ui.UiButton
-  _btn: {fileID: 3473627588706004029}
+  _button: {fileID: 3473627588706004029}
   _border: {fileID: 1039230964902627377}
   _fill: {fileID: 9159664848538477399}
   _label: {fileID: 3011379596891126044}
@@ -1205,7 +1205,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3a42e6bff7e5dfb4f84ed6f03e4949b8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: LineDefense.Game::LineDefense.View.Ui.UiButton
-  _btn: {fileID: 3835991344529139588}
+  _button: {fileID: 3835991344529139588}
   _border: {fileID: 8302346428043951529}
   _fill: {fileID: 5379554403602571503}
   _label: {fileID: 2084988150316146198}

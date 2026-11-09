@@ -9,26 +9,30 @@ namespace LineDefense.View
     /// </summary>
     public sealed class DenView : MonoBehaviour
     {
-        const float RingR = 20f;
+        private const float RingR = 20f;
 
-        [SerializeField] Transform _den;
-        [SerializeField] SpriteRenderer _body, _mouth, _fresh;
-        [SerializeField] SpriteRenderer[] _arrows;
+        [SerializeField] private Transform _denRoot;
+        [SerializeField] private SpriteRenderer _body, _mouth, _fresh;
+        [SerializeField] private SpriteRenderer[] _arrows;
 
-        public void Sync(Route r, float t, bool countdown)
+        public void Sync(Route route, float t, bool countdown)
         {
-            float deg = -r.Angle * Mathf.Rad2Deg;
-            transform.localPosition = new Vector3(0f, -Game.RW, 0f);
-            transform.localRotation = Quaternion.Euler(0f, 0f, deg);
+            float degrees = -route.Angle * Mathf.Rad2Deg;
+            transform.localPosition = new Vector3(0f, -Game.WallRadius, 0f);
+            transform.localRotation = Quaternion.Euler(0f, 0f, degrees);
             // 굴 그림은 회전하지 않음
-            _den.localPosition = new Vector3(Game.RW + Game.DEN + 14f, 0f, 0f);
-            _den.rotation = Quaternion.identity;
+            _denRoot.localPosition = new Vector3(Game.WallRadius + Game.DenDistance + 14f, 0f, 0f);
+            _denRoot.rotation = Quaternion.identity;
             _body.color = Palette.Monster;
             _mouth.color = Palette.Outside;
 
-            float fresh = Mathf.Max(0f, 1f - (t - r.Born) / 6f);
+            float fresh = Mathf.Max(0f, 1f - (t - route.Born) / 6f);
             bool on = fresh > 0f;
-            if (_fresh.gameObject.activeSelf != on) _fresh.gameObject.SetActive(on);
+            if (_fresh.gameObject.activeSelf != on)
+            {
+                _fresh.gameObject.SetActive(on);
+            }
+
             if (on)
             {
                 _fresh.transform.localScale = Vector3.one * ((18f + (1f - fresh) * 14f) / RingR);
@@ -38,11 +42,19 @@ namespace LineDefense.View
             float pulse = 0.45f + 0.45f * Mathf.Sin(t * 5f);
             for (int k = 0; k < _arrows.Length; k++)
             {
-                var a = _arrows[k];
-                if (a.gameObject.activeSelf != countdown) a.gameObject.SetActive(countdown);
-                if (!countdown) continue;
-                a.transform.localPosition = new Vector3(Game.RW + 34f + k * 16f, 0f, 0f);
-                a.color = Palette.WithAlpha(Palette.Danger, pulse * (1f - k * 0.25f));
+                var spriteRenderer = _arrows[k];
+                if (spriteRenderer.gameObject.activeSelf != countdown)
+                {
+                    spriteRenderer.gameObject.SetActive(countdown);
+                }
+
+                if (!countdown)
+                {
+                    continue;
+                }
+
+                spriteRenderer.transform.localPosition = new Vector3(Game.WallRadius + 34f + k * 16f, 0f, 0f);
+                spriteRenderer.color = Palette.WithAlpha(Palette.Danger, pulse * (1f - k * 0.25f));
             }
         }
     }

@@ -62,6 +62,9 @@ dotnet test Tools/CoreTests
 | `Assets/Scripts/Editor/BuildScript.cs` | WebGL 빌드 진입점 |
 | `Tools/SimRunner` | Core를 그대로 컴파일해 봇으로 수백 판을 돌리는 밸런스 시뮬레이터 |
 | `Tools/CoreTests` | Core 단위 테스트(xUnit) |
+| `Assets/Tests/EditMode` | 프리팹과 에셋의 직렬화 참조가 비지 않았는지 확인하는 Unity 테스트 |
+| `Assets/Tests/PlayMode` | 게임을 띄워 버튼이 포인터를 받고 눌리는지 확인하는 Unity 테스트 |
+| `.editorconfig` | Microsoft .NET 코딩 규칙(이름, 중괄호, 한 줄에 문장 하나) |
 | `site/` | 배포용 WebGL 빌드 결과 |
 
 ## 그림과 UI
@@ -88,6 +91,24 @@ Unity -batchmode -quit -nographics -projectPath . -buildTarget WebGL -executeMet
 ```
 
 빌드 스크립트는 `ContentsBuilder.BuildPlayer`로 콘텐츠 팩을 먼저 만든 뒤 플레이어를 빌드합니다. 팩 빌드 결과와 리포트는 `ContentsBuild/WebGL`에 생깁니다. 빌드 결과는 `Build/WebGL`에 생깁니다. 이를 `site/`로 복사해 `main`에 푸시하면 `.github/workflows/pages.yml`이 Pages로 배포합니다. CI에는 Unity 라이선스가 없어 빌드는 로컬에서 합니다.
+
+## 테스트
+
+```bash
+dotnet test Tools/CoreTests
+unity test . --mode EditMode --output Temp/editmode.xml --timeout 900
+unity test . --mode PlayMode --output Temp/playmode.xml --timeout 900
+```
+
+Unity 테스트는 에디터가 열려 있지 않을 때 배치 모드로 돕니다. 직렬화 필드 이름을 바꾸면 프리팹에 저장된 키도 같이 바꿔야 합니다. 바꾸지 않으면 EditMode 테스트가 빈 참조로 잡습니다.
+
+## 코드 규칙
+
+`.editorconfig`가 Microsoft .NET 코딩 규칙을 정합니다. 이름은 줄이지 않고 끝까지 씁니다. 밸런스 상수(`FORT_ATK` 등)는 밸런스 시트의 코드 상수 열과 같은 이름이라 대문자 그대로 둡니다.
+
+```bash
+dotnet format LineDefense.Game.csproj --verify-no-changes --severity warn
+```
 
 ## 밸런스 시뮬레이션
 

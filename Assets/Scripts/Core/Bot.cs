@@ -9,32 +9,39 @@ namespace LineDefense.Core
     /// </summary>
     public sealed class Bot
     {
-        readonly Game g;
+        private readonly Game _game;
 
         // 같은 침투로에 요새를 더 놓을 때 성벽을 따라 벌려 보는 간격(월드 단위)
-        static readonly float[] FortOffsets = { 0f, 60f, -60f, 120f, -120f, 90f, -90f, 160f, -160f, 30f, -30f };
+        private static readonly float[] s_fortOffsets = { 0f, 60f, -60f, 120f, -120f, 90f, -90f, 160f, -160f, 30f, -30f };
 
-        public Bot(Game g)
+        public Bot(Game game)
         {
-            this.g = g;
+            _game = game;
         }
 
         /// <summary>헤드리스 시뮬레이션용입니다. 보상 단계면 보상을 고른 뒤 Act를 호출합니다.</summary>
         public void Tick()
         {
-            if (g.Phase == Phase.Over) return;
-            if (g.Phase == Phase.Reward)
+            if (_game.Phase == Phase.Over)
             {
-                g.PickReward(ChooseReward());
-                if (g.Phase == Phase.Reward) return;
+                return;
+            }
+
+            if (_game.Phase == Phase.Reward)
+            {
+                _game.PickReward(ChooseReward());
+                if (_game.Phase == Phase.Reward)
+                {
+                    return;
+                }
             }
             Act();
         }
 
         // 이번 Act에서 남은 명령 수. 게임 안에서는 1로 두어 한 번에 하나씩 보이게 함
-        int budget;
-        bool CanAct => budget > 0;
-        void Used() => budget--;
+        private int _budget;
+        private bool CanAct => _budget > 0;
+        private void Used() => _budget--;
 
         /// <summary>
         /// 보상 선택을 뺀 건설, 노선 편집, 마차, 강화 행동을 수행합니다.
@@ -42,11 +49,25 @@ namespace LineDefense.Core
         /// </summary>
         public int Act(int maxActions = int.MaxValue)
         {
-            if (g.Phase == Phase.Over || g.Phase == Phase.Reward) return 0;
-            budget = maxActions;
+            if (_game.Phase == Phase.Over || _game.Phase == Phase.Reward)
+            {
+                return 0;
+            }
+
+            _budget = maxActions;
             // 새로 이을 생산처나 요새가 생기면 순환을 풀어 다시 늘릴 수 있게 함
             if (AnyFreeWork())
-                foreach (var l in g.Lines) if (l.Loop && CanAct) { g.BreakLoop(l); Used(); }
+            {
+                foreach (var line in _game.Lines)
+                {
+                    if (line.Loop && CanAct)
+                    {
+                        _game.BreakLoop(line);
+                        Used();
+                    }
+                }
+            }
+
             PlaceForts();
             BuildLines();
             PlaceStable();
@@ -55,13 +76,19 @@ namespace LineDefense.Core
             SetSlots();
             SpendGold();
             CloseLoops();
-            return maxActions - budget;
+            return maxActions - _budget;
         }
 
-        bool AnyFreeWork()
+        private bool AnyFreeWork()
         {
-            foreach (var n in g.Nodes)
-                if ((n.Type == NodeType.Farm || n.Type == NodeType.Forge || n.Type == NodeType.Fort) && IsFree(n)) return true;
+            foreach (var node in _game.Nodes)
+            {
+                if ((node.Type == NodeType.Farm || node.Type == NodeType.Forge || node.Type == NodeType.Fort) && IsFree(node))
+                {
+                    return true;
+                }
+            }
+
             return false;
         }
 
@@ -69,36 +96,59 @@ namespace LineDefense.Core
         /// 더 이을 것이 없으면 요새가 있는 노선을 순환으로 닫습니다.
         /// 마차가 왔던 길을 되짚지 않고 요새에서 마굿간으로 바로 돌아와 보급이 잦아집니다(시뮬 500판 평균 +0.5웨이브).
         /// </summary>
-        void CloseLoops()
+        private void CloseLoops()
         {
-            if (AnyFreeWork()) return;
-            foreach (var l in g.Lines)
+            if (AnyFreeWork())
             {
-                if (l.Loop || l.Nodes.Count < 3 || FortCount(l) == 0 || !CanAct) continue;
-                g.DragTo(l, LineEnd.Tail, g.NodeById(l.Nodes[0]));
-                if (l.Loop) Used();
+                return;
+            }
+
+            foreach (var line in _game.Lines)
+            {
+                if (line.Loop || line.Nodes.Count < 3 || FortCount(line) == 0 || !CanAct)
+                {
+                    continue;
+                }
+
+                _game.DragTo(line, LineEnd.Tail, _game.NodeById(line.Nodes[0]));
+                if (line.Loop)
+                {
+                    Used();
+                }
             }
         }
 
         // 노선 요새들의 빈 칸 비율대로 식량/무기 칸을 나누되 각 자원 최소 1칸은 남김
-        void SetSlots()
+        private void SetSlots()
         {
-            int cap = g.CartCap();
-            foreach (var l in g.Lines)
+            int capacity = _game.CartCapacity();
+            foreach (var line in _game.Lines)
             {
-                int needF = 0, needW = 0;
-                foreach (int id in l.Nodes)
+                int neededFood = 0, neededWeapons = 0;
+                foreach (int id in line.Nodes)
                 {
-                    var n = g.NodeById(id);
-                    if (n.Type != NodeType.Fort) continue;
-                    needF += Math.Max(0, (int)g.B.FORT_CAP - n.Food);
-                    needW += Math.Max(0, (int)g.B.FORT_CAP - n.Weapon);
+                    var node = _game.NodeById(id);
+                    if (node.Type != NodeType.Fort)
+                    {
+                        continue;
+                    }
+
+                    neededFood += Math.Max(0, (int)_game.Balance.FORT_CAP - node.Food);
+                    neededWeapons += Math.Max(0, (int)_game.Balance.FORT_CAP - node.Weapon);
                 }
-                int food = needF + needW == 0 ? (cap + 1) / 2 : (int)Math.Round(cap * (double)needF / (needF + needW));
-                food = Math.Max(1, Math.Min(cap - 1, food));
-                if (l.CartFoodSlots == food) continue;
-                if (!CanAct) return;
-                g.SetLineFoodSlots(l, food);
+                int food = neededFood + neededWeapons == 0 ? (capacity + 1) / 2 : (int)Math.Round(capacity * (double)neededFood / (neededFood + neededWeapons));
+                food = Math.Max(1, Math.Min(capacity - 1, food));
+                if (line.CartFoodSlots == food)
+                {
+                    continue;
+                }
+
+                if (!CanAct)
+                {
+                    return;
+                }
+
+                _game.SetLineFoodSlots(line, food);
                 Used();
             }
         }
@@ -108,244 +158,444 @@ namespace LineDefense.Core
         /// <summary>현재 보상 후보 중 고를 키를 반환합니다. 후보가 없으면 null입니다.</summary>
         public string ChooseReward()
         {
-            var c = g.RewardChoices;
-            if (c.Count == 0) return null;
-            if (c.Contains("fort") && AnyUncoveredRoute()) return "fort";
-            if (c.Contains("wall") && g.Wall < g.WallMax * .6f) return "wall";
-            if (c.Contains("stable") && g.Lines.Count + g.TokStable < 3) return "stable";
+            var choices = _game.RewardChoices;
+            if (choices.Count == 0)
+            {
+                return null;
+            }
+
+            if (choices.Contains("fort") && AnyUncoveredRoute())
+            {
+                return "fort";
+            }
+
+            if (choices.Contains("wall") && _game.Wall < _game.WallMax * .6f)
+            {
+                return "wall";
+            }
+
+            if (choices.Contains("stable") && _game.Lines.Count + _game.StableTokens < 3)
+            {
+                return "stable";
+            }
+
             foreach (var k in new[] { "cartExtra", "cartCap", "cartSpd", "fort", "stable", "gold" })
-                if (c.Contains(k)) return k;
-            foreach (var k in c) if (k != "warehouse" && k != "whCap" && k != "whUpg") return k;
-            return c[0];
+            {
+                if (choices.Contains(k))
+                {
+                    return k;
+                }
+            }
+
+            foreach (var k in choices)
+            {
+                if (k != "warehouse" && k != "whCap" && k != "whUpg")
+                {
+                    return k;
+                }
+            }
+
+            return choices[0];
         }
 
         // ---------- 요새 ----------
 
-        static Vec2 WallPoint(float angle) => new Vec2(MathF.Cos(angle) * Game.RW, Game.RW + MathF.Sin(angle) * Game.RW);
+        private static Vec2 WallPoint(float angle) => new Vec2(MathF.Cos(angle) * Game.WallRadius, Game.WallRadius + MathF.Sin(angle) * Game.WallRadius);
 
-        int Coverage(Route r)
+        private int Coverage(Route route)
         {
-            var wp = WallPoint(r.Angle);
-            int n = 0;
-            foreach (var f in g.Nodes) if (f.Type == NodeType.Fort && Vec2.Dist(f.Pos, wp) <= g.B.RANGE) n++;
-            return n;
+            var wallPoint = WallPoint(route.Angle);
+            int count = 0;
+            foreach (var fort in _game.Nodes)
+            {
+                if (fort.Type == NodeType.Fort && Vec2.Distance(fort.Position, wallPoint) <= _game.Balance.RANGE)
+                {
+                    count++;
+                }
+            }
+
+            return count;
         }
 
-        bool AnyUncoveredRoute()
+        private bool AnyUncoveredRoute()
         {
-            foreach (var r in g.Routes) if (Coverage(r) == 0) return true;
+            foreach (var route in _game.Routes)
+            {
+                if (Coverage(route) == 0)
+                {
+                    return true;
+                }
+            }
+
             return false;
         }
 
-        void PlaceForts()
+        private void PlaceForts()
         {
-            while (g.TokFort > 0 && CanAct)
+            while (_game.FortTokens > 0 && CanAct)
             {
                 Route worst = null;
-                int wc = int.MaxValue;
-                foreach (var r in g.Routes)
+                int worstCoverage = int.MaxValue;
+                foreach (var route in _game.Routes)
                 {
-                    int c = Coverage(r);
-                    if (c < wc) { wc = c; worst = r; }
+                    int coverage = Coverage(route);
+                    if (coverage < worstCoverage)
+                    {
+                        worstCoverage = coverage;
+                        worst = route;
+                    }
                 }
-                if (worst == null) return;
+                if (worst == null)
+                {
+                    return;
+                }
+
                 bool placed = false;
-                foreach (float off in FortOffsets)
+                foreach (float off in s_fortOffsets)
                 {
-                    var p = WallPoint(worst.Angle + off / Game.RW);
-                    if (g.CanPlace(BuildKind.Fort, p) && g.Place(BuildKind.Fort, p) != null) { placed = true; Used(); break; }
+                    var position = WallPoint(worst.Angle + off / Game.WallRadius);
+                    if (_game.CanPlace(BuildKind.Fort, position) && _game.Place(BuildKind.Fort, position) != null)
+                    {
+                        placed = true;
+                        Used();
+                        break;
+                    }
                 }
-                if (!placed) return;
+                if (!placed)
+                {
+                    return;
+                }
             }
         }
 
         // ---------- 노선 ----------
 
-        static bool Has(Game g, Line l, NodeType t)
+        private static bool HasNodeOfType(Game game, Line line, NodeType nodeType)
         {
-            foreach (int id in l.Nodes) if (g.NodeById(id).Type == t) return true;
+            foreach (int id in line.Nodes)
+            {
+                if (game.NodeById(id).Type == nodeType)
+                {
+                    return true;
+                }
+            }
+
             return false;
         }
 
-        int FortCount(Line l)
+        private int FortCount(Line line)
         {
-            int n = 0;
-            foreach (int id in l.Nodes) if (g.NodeById(id).Type == NodeType.Fort) n++;
-            return n;
+            int count = 0;
+            foreach (int id in line.Nodes)
+            {
+                if (_game.NodeById(id).Type == NodeType.Fort)
+                {
+                    count++;
+                }
+            }
+
+            return count;
         }
 
-        bool IsFree(Node n)
+        private bool IsFree(Node node)
         {
-            foreach (var _ in g.LinesWith(n.Id)) return false;
+            foreach (var _ in _game.LinesWith(node.Id))
+            {
+                return false;
+            }
+
             return true;
         }
 
-        Node Nearest(NodeType type, Vec2 from, Func<Node, bool> filter)
+        private Node Nearest(NodeType type, Vec2 from, Func<Node, bool> filter)
         {
             Node best = null;
-            float bd = float.MaxValue;
-            foreach (var n in g.Nodes)
+            float bestDistance = float.MaxValue;
+            foreach (var node in _game.Nodes)
             {
-                if (n.Type != type || !filter(n)) continue;
-                float d = Vec2.Dist(n.Pos, from);
-                if (d < bd) { bd = d; best = n; }
+                if (node.Type != type || !filter(node))
+                {
+                    continue;
+                }
+
+                float distance = Vec2.Distance(node.Position, from);
+                if (distance < bestDistance)
+                {
+                    bestDistance = distance;
+                    best = node;
+                }
             }
             return best;
         }
 
-        Vec2 TailPos(Line l) => g.NodeById(l.Nodes[l.Nodes.Count - 1]).Pos;
+        private Vec2 TailPosition(Line line) => _game.NodeById(line.Nodes[line.Nodes.Count - 1]).Position;
 
-        bool Extend(Line l, Node t)
+        private bool Extend(Line line, Node target)
         {
-            if (t == null || !CanAct) return false;
-            g.DragTo(l, LineEnd.Tail, t);
-            if (!l.Nodes.Contains(t.Id)) return false;
+            if (target == null || !CanAct)
+            {
+                return false;
+            }
+
+            _game.DragTo(line, LineEnd.Tail, target);
+            if (!line.Nodes.Contains(target.Id))
+            {
+                return false;
+            }
+
             Used();
             return true;
         }
 
         /// <summary>마굿간 - 농장 - 대장간 - 요새 순으로 한 번에 한 정거장씩 이어 변화가 없을 때까지 반복합니다.</summary>
-        void BuildLines()
+        private void BuildLines()
         {
             for (int guard = 0; guard < 40; guard++)
             {
                 bool changed = false;
-                foreach (var l in g.Lines)
+                foreach (var line in _game.Lines)
                 {
-                    if (l.Loop) continue;
-                    var tail = TailPos(l);
+                    if (line.Loop)
+                    {
+                        continue;
+                    }
+
+                    var tail = TailPosition(line);
                     // 남는 농장이 없으면 대장간이라도 이음. 마굿간만 놓고 못 이은 노선이 다음 Act에서 이어지게 함
-                    bool got = !Has(g, l, NodeType.Farm) && Extend(l, Nearest(NodeType.Farm, tail, IsFree));
-                    if (!got && !Has(g, l, NodeType.Forge)) got = Extend(l, Nearest(NodeType.Forge, TailPos(l), IsFree));
-                    changed |= got;
+                    bool extended = !HasNodeOfType(_game, line, NodeType.Farm) && Extend(line, Nearest(NodeType.Farm, tail, IsFree));
+                    if (!extended && !HasNodeOfType(_game, line, NodeType.Forge))
+                    {
+                        extended = Extend(line, Nearest(NodeType.Forge, TailPosition(line), IsFree));
+                    }
+
+                    changed |= extended;
                 }
                 changed |= AttachForts();
                 // 스스로 늘릴 마굿간이 없으면 남는 생산처를 꼬리가 가장 가까운 노선에 붙임
-                if (g.TokStable <= 0 || g.Lines.Count >= Game.LineColorCount) changed |= AttachSpareProducer();
-                if (!changed) return;
+                if (_game.StableTokens <= 0 || _game.Lines.Count >= Game.LineColorCount)
+                {
+                    changed |= AttachSpareProducer();
+                }
+
+                if (!changed)
+                {
+                    return;
+                }
             }
         }
 
         // 농장과 대장간을 가져올 수 있는 만큼 가져온 노선만 요새로 넘어감
-        bool ProducersDone(Line l)
+        private bool ProducersDone(Line line)
         {
-            bool farm = Has(g, l, NodeType.Farm), forge = Has(g, l, NodeType.Forge);
-            if (!farm && !forge) return false;
-            return (farm || Nearest(NodeType.Farm, TailPos(l), IsFree) == null) && (forge || Nearest(NodeType.Forge, TailPos(l), IsFree) == null);
+            bool farm = HasNodeOfType(_game, line, NodeType.Farm), forge = HasNodeOfType(_game, line, NodeType.Forge);
+            if (!farm && !forge)
+            {
+                return false;
+            }
+
+            return (farm || Nearest(NodeType.Farm, TailPosition(line), IsFree) == null) && (forge || Nearest(NodeType.Forge, TailPosition(line), IsFree) == null);
         }
 
-        bool AttachForts()
+        private bool AttachForts()
         {
             bool changed = false;
             // 노선이 없는 요새는 꼬리가 가까우면서 요새가 적은 노선에 붙임
-            foreach (var f in g.Nodes)
+            foreach (var fort in _game.Nodes)
             {
-                if (f.Type != NodeType.Fort || !IsFree(f)) continue;
-                Line best = null;
-                float bc = float.MaxValue;
-                foreach (var l in g.Lines)
+                if (fort.Type != NodeType.Fort || !IsFree(fort))
                 {
-                    if (l.Loop || !ProducersDone(l)) continue;
-                    float cost = Vec2.Dist(TailPos(l), f.Pos) + 150f * FortCount(l);
-                    if (cost < bc) { bc = cost; best = l; }
+                    continue;
                 }
-                if (best != null) changed |= Extend(best, f);
+
+                Line best = null;
+                float bestCost = float.MaxValue;
+                foreach (var line in _game.Lines)
+                {
+                    if (line.Loop || !ProducersDone(line))
+                    {
+                        continue;
+                    }
+
+                    float cost = Vec2.Distance(TailPosition(line), fort.Position) + 150f * FortCount(line);
+                    if (cost < bestCost)
+                    {
+                        bestCost = cost;
+                        best = line;
+                    }
+                }
+                if (best != null)
+                {
+                    changed |= Extend(best, fort);
+                }
             }
             // 요새가 하나도 없는 노선에는 가까운 요새를 공유시킴
-            foreach (var l in g.Lines)
+            foreach (var line in _game.Lines)
             {
-                if (l.Loop || FortCount(l) > 0 || !ProducersDone(l)) continue;
-                changed |= Extend(l, Nearest(NodeType.Fort, TailPos(l), n => !l.Nodes.Contains(n.Id)));
+                if (line.Loop || FortCount(line) > 0 || !ProducersDone(line))
+                {
+                    continue;
+                }
+
+                changed |= Extend(line, Nearest(NodeType.Fort, TailPosition(line), node => !line.Nodes.Contains(node.Id)));
             }
             return changed;
         }
 
-        bool AttachSpareProducer()
+        private bool AttachSpareProducer()
         {
-            foreach (var p in g.Nodes)
+            foreach (var node in _game.Nodes)
             {
-                if ((p.Type != NodeType.Farm && p.Type != NodeType.Forge) || !IsFree(p)) continue;
-                Line best = null;
-                float bd = float.MaxValue;
-                foreach (var l in g.Lines)
+                if ((node.Type != NodeType.Farm && node.Type != NodeType.Forge) || !IsFree(node))
                 {
-                    if (l.Loop) continue;
-                    float d = Vec2.Dist(TailPos(l), p.Pos);
-                    if (d < bd) { bd = d; best = l; }
+                    continue;
                 }
-                if (best != null && Extend(best, p)) return true;
+
+                Line best = null;
+                float bestDistance = float.MaxValue;
+                foreach (var line in _game.Lines)
+                {
+                    if (line.Loop)
+                    {
+                        continue;
+                    }
+
+                    float distance = Vec2.Distance(TailPosition(line), node.Position);
+                    if (distance < bestDistance)
+                    {
+                        bestDistance = distance;
+                        best = line;
+                    }
+                }
+                if (best != null && Extend(best, node))
+                {
+                    return true;
+                }
             }
             return false;
         }
 
         /// <summary>어느 노선도 가져가지 못한 생산처 옆에 마굿간을 놓음</summary>
-        void PlaceStable()
+        private void PlaceStable()
         {
-            if (g.TokStable <= 0 || !CanAct) return;
-            Node target = null;
-            foreach (var n in g.Nodes)
+            if (_game.StableTokens <= 0 || !CanAct)
             {
-                if ((n.Type != NodeType.Farm && n.Type != NodeType.Forge) || !IsFree(n)) continue;
-                if (target == null || (n.Type == NodeType.Farm && target.Type != NodeType.Farm)) target = n;
+                return;
             }
-            if (target == null) return;
-            var fort = Nearest(NodeType.Fort, target.Pos, _ => true);
-            var dir = fort != null ? fort.Pos - target.Pos : new Vec2(0f, -1f);
-            float len = dir.Length;
-            dir = len > 0f ? dir / len : new Vec2(0f, -1f);
-            foreach (float r in new[] { 70f, 100f, 130f })
-                foreach (float deg in new[] { 0f, 45f, -45f, 90f, -90f, 135f, -135f, 180f })
+
+            Node target = null;
+            foreach (var node in _game.Nodes)
+            {
+                if ((node.Type != NodeType.Farm && node.Type != NodeType.Forge) || !IsFree(node))
                 {
-                    float a = deg * MathF.PI / 180f, cs = MathF.Cos(a), sn = MathF.Sin(a);
-                    var p = target.Pos + new Vec2(dir.x * cs - dir.y * sn, dir.x * sn + dir.y * cs) * r;
-                    if (!g.CanPlace(BuildKind.Stable, p)) continue;
-                    var st = g.Place(BuildKind.Stable, p);
-                    if (st == null) return;
+                    continue;
+                }
+
+                if (target == null || (node.Type == NodeType.Farm && target.Type != NodeType.Farm))
+                {
+                    target = node;
+                }
+            }
+            if (target == null)
+            {
+                return;
+            }
+
+            var fort = Nearest(NodeType.Fort, target.Position, _ => true);
+            var direction = fort != null ? fort.Position - target.Position : new Vec2(0f, -1f);
+            float length = direction.Length;
+            direction = length > 0f ? direction / length : new Vec2(0f, -1f);
+            foreach (float radius in new[] { 70f, 100f, 130f })
+            {
+                foreach (float degrees in new[] { 0f, 45f, -45f, 90f, -90f, 135f, -135f, 180f })
+                {
+                    float angle = degrees * MathF.PI / 180f, cosine = MathF.Cos(angle), sine = MathF.Sin(angle);
+                    var position = target.Position + new Vec2(direction.X * cosine - direction.Y * sine, direction.X * sine + direction.Y * cosine) * radius;
+                    if (!_game.CanPlace(BuildKind.Stable, position))
+                    {
+                        continue;
+                    }
+
+                    var node = _game.Place(BuildKind.Stable, position);
+                    if (node == null)
+                    {
+                        return;
+                    }
+
                     Used();
                     // 다른 노선이 같은 생산처를 먼저 가져가지 않게 바로 이음. 남은 명령이 없으면 다음 Act의 BuildLines가 이음
-                    Extend(g.LineById(st.LineId), target);
+                    Extend(_game.LineById(node.LineId), target);
                     return;
                 }
+            }
         }
 
         // ---------- 마차, 골드 ----------
 
-        void AddCarts()
+        private void AddCarts()
         {
-            while (g.TokCart > 0 && CanAct)
+            while (_game.CartTokens > 0 && CanAct)
             {
                 Line best = null;
-                float br = -1f;
-                foreach (var l in g.Lines)
+                float bestRatio = -1f;
+                foreach (var line in _game.Lines)
                 {
-                    int forts = FortCount(l);
-                    if (forts == 0) continue;
-                    float ratio = (float)forts / l.Carts.Count;
-                    if (ratio > br) { br = ratio; best = l; }
+                    int forts = FortCount(line);
+                    if (forts == 0)
+                    {
+                        continue;
+                    }
+
+                    float ratio = (float)forts / line.Carts.Count;
+                    if (ratio > bestRatio)
+                    {
+                        bestRatio = ratio;
+                        best = line;
+                    }
                 }
-                if (best == null || !g.AddCart(best)) return;
+                if (best == null || !_game.AddCart(best))
+                {
+                    return;
+                }
+
                 Used();
             }
         }
 
         /// <summary>노선에 이어진 요새 중 레벨이 낮은 쪽부터, 공격력과 공격 속도를 번갈아 올림</summary>
-        void SpendGold()
+        private void SpendGold()
         {
-            int max = g.UpgMax();
+            int max = _game.MaxUpgradeLevel();
             for (int guard = 0; guard < 50 && CanAct; guard++)
             {
                 Node pick = null;
-                int pl = int.MaxValue;
-                bool atk = true;
-                foreach (var f in g.Nodes)
+                int pickLevel = int.MaxValue;
+                bool upgradeAttack = true;
+                foreach (var fort in _game.Nodes)
                 {
-                    if (f.Type != NodeType.Fort || IsFree(f)) continue;
-                    bool a = f.AtkLv <= f.SpdLv;
-                    int lv = a ? f.AtkLv : f.SpdLv;
-                    if (lv >= max) continue;
-                    if (lv < pl) { pl = lv; pick = f; atk = a; }
+                    if (fort.Type != NodeType.Fort || IsFree(fort))
+                    {
+                        continue;
+                    }
+
+                    bool attackIsLower = fort.AttackLevel <= fort.SpeedLevel;
+                    int level = attackIsLower ? fort.AttackLevel : fort.SpeedLevel;
+                    if (level >= max)
+                    {
+                        continue;
+                    }
+
+                    if (level < pickLevel)
+                    {
+                        pickLevel = level;
+                        pick = fort;
+                        upgradeAttack = attackIsLower;
+                    }
                 }
-                if (pick == null || !g.UpgradeFort(pick, atk)) return;
+                if (pick == null || !_game.UpgradeFort(pick, upgradeAttack))
+                {
+                    return;
+                }
+
                 Used();
             }
         }

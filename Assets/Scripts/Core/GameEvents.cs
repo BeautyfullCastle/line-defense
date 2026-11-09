@@ -1,12 +1,15 @@
 namespace LineDefense.Core
 {
-    public enum GameEventType { Shot, Kill, Burst, Float, Bark, Say, Toast, WaveStart, RewardReady, GameOver, NodePlaced, WallHit }
+    public enum GameEventType
+    {
+        Shot, Kill, Burst, Float, Bark, Say, Toast, WaveStart, RewardReady, GameOver, NodePlaced, WallHit
+    }
 
     /// <summary>표현 계층이 소비하는 일회성 이벤트입니다.</summary>
     public struct GameEvent
     {
         public GameEventType Type;
-        public Vec2 A, B;
+        public Vec2 From, To;
         public string Text;
         public string Key;
         /// <summary>[화자, 대사] 쌍의 배열입니다. 화자는 gen, aide, msg, narr 중 하나입니다.</summary>

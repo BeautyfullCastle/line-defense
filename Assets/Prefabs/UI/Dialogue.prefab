@@ -96,11 +96,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8f6fccfd707c4b04f814522ce844ecb9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: LineDefense.Game::LineDefense.View.Ui.DialogueView
-  _cardBtn: {fileID: 2022959791560879373}
+  _cardButton: {fileID: 2022959791560879373}
   _face: {fileID: 3479261160587725382}
-  _faceTxt: {fileID: 2531014407362646369}
-  _who: {fileID: 2630540414813360095}
-  _txt: {fileID: 2452913091551195473}
+  _faceLabel: {fileID: 2531014407362646369}
+  _speaker: {fileID: 2630540414813360095}
+  _text: {fileID: 2452913091551195473}
   _sizer: {fileID: 1955353637525538947}
   _more: {fileID: 1885694500804625688}
   _skip: {fileID: 783548383993391930}
@@ -282,7 +282,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3a42e6bff7e5dfb4f84ed6f03e4949b8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: LineDefense.Game::LineDefense.View.Ui.UiButton
-  _btn: {fileID: 2437613567296118104}
+  _button: {fileID: 2437613567296118104}
   _border: {fileID: 3138863127590409000}
   _fill: {fileID: 5997218503493565524}
   _label: {fileID: 5507320832984299210}

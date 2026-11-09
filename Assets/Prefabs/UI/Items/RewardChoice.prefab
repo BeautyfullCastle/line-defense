@@ -289,7 +289,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3a42e6bff7e5dfb4f84ed6f03e4949b8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: LineDefense.Game::LineDefense.View.Ui.UiButton
-  _btn: {fileID: 7782939891953744144}
+  _button: {fileID: 7782939891953744144}
   _border: {fileID: 6251575887333637979}
   _fill: {fileID: 2012972081420652592}
   _label: {fileID: 2377001827099115544}
@@ -309,7 +309,7 @@ MonoBehaviour:
   _button: {fileID: 6260908454154197873}
   _icon: {fileID: 388381165484176105}
   _title: {fileID: 5852870458076039518}
-  _desc: {fileID: 1120079646348913683}
+  _description: {fileID: 1120079646348913683}
 --- !u!1 &7340910155419926097
 GameObject:
   m_ObjectHideFlags: 0

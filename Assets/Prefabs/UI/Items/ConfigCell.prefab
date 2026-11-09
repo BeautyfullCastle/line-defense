@@ -50,7 +50,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dbb7bb1fa073086459efa3b4dd7eaefa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: LineDefense.Game::LineDefense.View.Ui.ConfigCell
-  _img: {fileID: 1474972362323432059}
+  _image: {fileID: 1474972362323432059}
 --- !u!222 &7449053080761546749
 CanvasRenderer:
   m_ObjectHideFlags: 0

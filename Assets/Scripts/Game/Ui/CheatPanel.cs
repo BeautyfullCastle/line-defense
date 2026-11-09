@@ -8,11 +8,11 @@ namespace LineDefense.View.Ui
     /// <summary>오른쪽 위에 토글하는 치트 패널입니다. 프로토타입 빌드에서는 항상 쓸 수 있습니다. 프리팹 Prefabs/UI/Cheat에 붙습니다.</summary>
     public sealed class CheatPanel : MonoBehaviour
     {
-        [SerializeField] UiButton _bGold, _bTokens, _bHeal, _bInvincible, _bSkip, _bKillAll, _bWinWave, _bWave5;
-        [SerializeField] UiButton _b5, _b10, _b20, _bAuto, _bNewGame, _bBalanceLoad, _bBalanceReset;
-        [SerializeField] Text _info, _balance;
+        [SerializeField] private UiButton _goldButton, _tokensButton, _healButton, _invincibleButton, _skipCountdownButton, _killAllButton, _winWaveButton, _wavePlus5Button;
+        [SerializeField] private UiButton _speed5Button, _speed10Button, _speed20Button, _autoButton, _newGameButton, _balanceLoadButton, _balanceResetButton;
+        [SerializeField] private Text _info, _balance;
 
-        int _infoKey = int.MinValue;
+        private int _infoKey = int.MinValue;
 
         public Action OnGold, OnTokens, OnHeal, OnInvincible, OnSkipCountdown, OnKillAll, OnWinWave, OnWavePlus5, OnAuto, OnNewGame;
         public Action OnBalanceLoad, OnBalanceReset;
@@ -21,27 +21,37 @@ namespace LineDefense.View.Ui
         /// <summary>패널이 보이는지 여부입니다.</summary>
         public bool Visible => gameObject.activeSelf;
 
-        void Awake()
+        private void Awake()
         {
-            void On(UiButton b, Func<Action> a) => b.Button.onClick.AddListener(() => a()?.Invoke());
-            On(_bGold, () => OnGold); On(_bTokens, () => OnTokens);
-            On(_bHeal, () => OnHeal); On(_bInvincible, () => OnInvincible);
-            On(_bSkip, () => OnSkipCountdown); On(_bKillAll, () => OnKillAll);
-            On(_bWinWave, () => OnWinWave); On(_bWave5, () => OnWavePlus5);
-            On(_bAuto, () => OnAuto); On(_bNewGame, () => OnNewGame);
-            On(_bBalanceLoad, () => OnBalanceLoad); On(_bBalanceReset, () => OnBalanceReset);
-            _b5.Button.onClick.AddListener(() => OnSpeed?.Invoke(5));
-            _b10.Button.onClick.AddListener(() => OnSpeed?.Invoke(10));
-            _b20.Button.onClick.AddListener(() => OnSpeed?.Invoke(20));
+            void On(UiButton button, Func<Action> actionGetter) => button.Button.onClick.AddListener(() => actionGetter()?.Invoke());
+            On(_goldButton, () => OnGold);
+            On(_tokensButton, () => OnTokens);
+            On(_healButton, () => OnHeal);
+            On(_invincibleButton, () => OnInvincible);
+            On(_skipCountdownButton, () => OnSkipCountdown);
+            On(_killAllButton, () => OnKillAll);
+            On(_winWaveButton, () => OnWinWave);
+            On(_wavePlus5Button, () => OnWavePlus5);
+            On(_autoButton, () => OnAuto);
+            On(_newGameButton, () => OnNewGame);
+            On(_balanceLoadButton, () => OnBalanceLoad);
+            On(_balanceResetButton, () => OnBalanceReset);
+            _speed5Button.Button.onClick.AddListener(() => OnSpeed?.Invoke(5));
+            _speed10Button.Button.onClick.AddListener(() => OnSpeed?.Invoke(10));
+            _speed20Button.Button.onClick.AddListener(() => OnSpeed?.Invoke(20));
         }
 
         /// <summary>지금 쓰는 밸런스 시트 이름을 표시합니다. null이면 기본 시트입니다.</summary>
         public void SetBalanceSource(string importedName)
         {
             const int MaxName = 24;
-            string n = string.IsNullOrEmpty(importedName) ? "기본 시트" : importedName;
-            if (n.Length > MaxName) n = n.Substring(0, MaxName - 1) + "…";
-            _balance.text = "밸런스: " + n;
+            string displayName = string.IsNullOrEmpty(importedName) ? "기본 시트" : importedName;
+            if (displayName.Length > MaxName)
+            {
+                displayName = displayName.Substring(0, MaxName - 1) + "…";
+            }
+
+            _balance.text = "밸런스: " + displayName;
         }
 
         /// <summary>보임과 숨김을 바꿉니다.</summary>
@@ -51,21 +61,29 @@ namespace LineDefense.View.Ui
         public void SetTop(float topInset) => ((RectTransform)transform).anchoredPosition = new Vector2(-14f, -(topInset + 14f));
 
         /// <summary>토글 상태와 FPS, 시뮬레이션 시간을 갱신합니다.</summary>
-        public void Refresh(Game g, int speed, bool auto, float fps)
+        public void Refresh(Game game, int speed, bool auto, float framesPerSecond)
         {
-            if (!Visible) return;
-            _bInvincible.SetText(g.CheatInvincible ? "무적 on" : "무적 off");
-            _bInvincible.SetOn(g.CheatInvincible);
-            _bAuto.SetText(auto ? "자동 플레이 on" : "자동 플레이 off");
-            _bAuto.SetOn(auto);
-            _b5.SetOn(speed == 5);
-            _b10.SetOn(speed == 10);
-            _b20.SetOn(speed == 20);
-            int t = Mathf.FloorToInt(g.T), f = Mathf.RoundToInt(fps);
-            int key = HashCode.Combine(t, f);
-            if (key == _infoKey) return;
+            if (!Visible)
+            {
+                return;
+            }
+
+            _invincibleButton.SetText(game.CheatInvincible ? "무적 on" : "무적 off");
+            _invincibleButton.SetOn(game.CheatInvincible);
+            _autoButton.SetText(auto ? "자동 플레이 on" : "자동 플레이 off");
+            _autoButton.SetOn(auto);
+            _speed5Button.SetOn(speed == 5);
+            _speed10Button.SetOn(speed == 10);
+            _speed20Button.SetOn(speed == 20);
+            int seconds = Mathf.FloorToInt(game.ElapsedTime), roundedFramesPerSecond = Mathf.RoundToInt(framesPerSecond);
+            int key = HashCode.Combine(seconds, roundedFramesPerSecond);
+            if (key == _infoKey)
+            {
+                return;
+            }
+
             _infoKey = key;
-            _info.text = $"FPS {f} · 시뮬 {t / 60}:{t % 60:00}";
+            _info.text = $"FPS {roundedFramesPerSecond} · 시뮬 {seconds / 60}:{seconds % 60:00}";
         }
     }
 }

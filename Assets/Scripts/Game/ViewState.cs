@@ -6,10 +6,10 @@ namespace LineDefense.View
     public sealed class ViewState
     {
         /// <summary>보간 중인 개척지 반폭입니다.</summary>
-        public float HWd;
+        public float DisplayHalfWidth;
 
         /// <summary>보간 중인 개척지 깊이입니다.</summary>
-        public float Dd;
+        public float DisplayDepth;
 
         /// <summary>건설 모드 여부입니다.</summary>
         public bool HasMode;
@@ -22,10 +22,10 @@ namespace LineDefense.View
 
         public Line DragLine;
         public LineEnd DragEnd;
-        public Vec2 DragPos;
+        public Vec2 DragPosition;
 
         /// <summary>노선 구간을 끌어 정거장을 끼워 넣는 중이면 그 구간 번호입니다. 끝을 끌 때는 -1입니다.</summary>
-        public int DragSeg = -1;
+        public int DragSegment = -1;
 
         /// <summary>끌고 있는 위치 아래의 노드입니다.</summary>
         public Node DragTarget;
@@ -36,7 +36,7 @@ namespace LineDefense.View
         public Vec2 Hover;
 
         /// <summary>설정창이 열린 노드입니다.</summary>
-        public Node CfgNode;
+        public Node ConfigNode;
 
         /// <summary>건설 모드와 드래그와 설정창 선택을 모두 해제합니다.</summary>
         public void ClearSelection()
@@ -44,9 +44,9 @@ namespace LineDefense.View
             HasMode = false;
             Dragging = false;
             DragLine = null;
-            DragSeg = -1;
+            DragSegment = -1;
             DragTarget = null;
-            CfgNode = null;
+            ConfigNode = null;
         }
     }
 }
