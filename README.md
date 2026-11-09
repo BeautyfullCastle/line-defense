@@ -51,7 +51,7 @@ Unity -batchmode -quit -nographics -projectPath . -buildTarget WebGL -executeMet
 dotnet run -c Release --project Tools/SimRunner -- --runs 100 --seed 1
 ```
 
-`--set KEY=VALUE`로 `Balance` 값을 바꿔 볼 수 있고, `--trace`는 10초마다 노선과 요새 재고를 출력합니다. 현재 값에서 봇은 100판 평균 11.2웨이브(중앙값 11, 최소 4, 최대 18)까지 버팁니다.
+`--set KEY=VALUE`로 `Balance` 값을 바꿔 볼 수 있고, `--trace`는 10초마다 노선과 요새 재고를 출력합니다. 현재 값에서 봇은 100판 평균 12.0웨이브(중앙값 11, 최소 5, 최대 19)까지 버팁니다. 봇은 더 이을 것이 없으면 요새가 있는 노선을 순환으로 닫습니다.
 
 ## 글꼴
 
