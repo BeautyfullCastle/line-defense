@@ -32,8 +32,13 @@ namespace LineDefense.View.Ui
             UiFactory.Fill(Root, Palette.Outside, false, true);
 
             var title = UiFactory.Label(Root, "요새 노선도", 22, Palette.Ink, true);
-            title.rectTransform.sizeDelta = new Vector2(150f, RowH);
+            title.rectTransform.sizeDelta = new Vector2(UiFactory.TextWidth(title.text, 22, true) + 8f, RowH);
             _flow.Add(title.rectTransform);
+            // 배포된 빌드가 어느 버전인지 바로 알 수 있게 제목 옆에 표시
+            string ver = "v" + Application.version;
+            var verLabel = UiFactory.Label(Root, ver, 11, Palette.Muted, true);
+            verLabel.rectTransform.sizeDelta = new Vector2(UiFactory.TextWidth(ver, 11, true) + 12f, RowH);
+            _flow.Add(verLabel.rectTransform);
 
             _wave = Stat("웨이브", 44f, 40f, out _);
             _phase = Stat("다음 침공", 56f, 78f, out _phaseL);
