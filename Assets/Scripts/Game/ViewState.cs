@@ -24,6 +24,9 @@ namespace LineDefense.View
         public LineEnd DragEnd;
         public Vec2 DragPos;
 
+        /// <summary>노선 구간을 끌어 정거장을 끼워 넣는 중이면 그 구간 번호입니다. 끝을 끌 때는 -1입니다.</summary>
+        public int DragSeg = -1;
+
         /// <summary>끌고 있는 위치 아래의 노드입니다.</summary>
         public Node DragTarget;
 
@@ -41,6 +44,7 @@ namespace LineDefense.View
             HasMode = false;
             Dragging = false;
             DragLine = null;
+            DragSeg = -1;
             DragTarget = null;
             CfgNode = null;
         }

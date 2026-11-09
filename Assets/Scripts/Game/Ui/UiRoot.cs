@@ -21,6 +21,7 @@ namespace LineDefense.View.Ui
         public RewardBannerView RewardBanner { get; }
         public HelpView Help { get; }
         public OverView Over { get; }
+        public FlyLayer Fly { get; }
 
         /// <summary>캔버스 가로 크기(캔버스 단위)입니다.</summary>
         public float CanvasW { get; private set; } = 1280f;
@@ -59,6 +60,22 @@ namespace LineDefense.View.Ui
             RewardBanner = new RewardBannerView(t);
             Help = new HelpView(t);
             Over = new OverView(t);
+            Fly = new FlyLayer(t, Resolve);
+            Footer.Pending = k => Fly.Pending(k == LineDefense.Core.BuildKind.Stable ? FlyTarget.Stable
+                : k == LineDefense.Core.BuildKind.Fort ? FlyTarget.Fort : FlyTarget.Warehouse);
+        }
+
+        RectTransform Resolve(FlyTarget t)
+        {
+            switch (t)
+            {
+                case FlyTarget.Gold: return Hud.GoldRect;
+                case FlyTarget.Wall: return Hud.WallRect;
+                case FlyTarget.Stable: return Footer.CountRect(LineDefense.Core.BuildKind.Stable);
+                case FlyTarget.Fort: return Footer.CountRect(LineDefense.Core.BuildKind.Fort);
+                case FlyTarget.Warehouse: return Footer.CountRect(LineDefense.Core.BuildKind.Warehouse);
+                default: return Footer.InfoRect;
+            }
         }
 
         static Canvas MakeCanvas(Transform parent, string name, int order, bool raycast)

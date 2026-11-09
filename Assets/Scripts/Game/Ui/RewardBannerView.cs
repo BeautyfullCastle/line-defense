@@ -120,6 +120,13 @@ namespace LineDefense.View.Ui
             rt.sizeDelta = new Vector2(w, h);
         }
 
+        /// <summary>배너 아이콘 가운데의 화면 좌표입니다. 얻은 것이 여기서 날아갑니다.</summary>
+        public Vector2 IconScreen()
+        {
+            var ic = _card != null ? (RectTransform)_card.Find("Icon") : null;
+            return ic != null ? (Vector2)ic.TransformPoint(ic.rect.center) : (Vector2)_root.TransformPoint(_root.rect.center);
+        }
+
         /// <summary>배너를 바로 숨깁니다.</summary>
         public void Hide()
         {

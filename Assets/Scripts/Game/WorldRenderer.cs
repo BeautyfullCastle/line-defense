@@ -18,6 +18,7 @@ namespace LineDefense.View
         readonly List<Vector2> pts = new List<Vector2>(64);
         readonly List<Vector2> pts2 = new List<Vector2>(64);
         readonly List<Vec2> _centroidPs = new List<Vec2>(16);
+        float _wallGlow;
         readonly List<(Vec2 pos, Vec2 endPos, Vec2 dir, LineEnd end, Line line)> _handles = new List<(Vec2 pos, Vec2 endPos, Vec2 dir, LineEnd end, Line line)>(2);
         CameraFit _camForLabels;
 
@@ -42,6 +43,7 @@ namespace LineDefense.View
             labels.Begin();
             DrawTerrain(g, v, cam, labels);
             DrawRanges(g);
+            _wallGlow = fx.WallGlow;
             DrawWallAndRoutes(g, cam, labels);
             DrawLines(g, v);
             DrawShots(fx);
@@ -135,12 +137,14 @@ namespace LineDefense.View
                 labels.Add(cam, label, dx, dy - 20f, 12f, Palette.Danger, true);
             }
 
-            b.StrokeArc(0f, RW, RW + 4f, a0, a1, 12f, Palette.Wall);
+            // 피해를 받으면 성벽 전체가 잠깐 붉게 물듦
+            var wallCol = Color.Lerp(Palette.Wall, Palette.Danger, Mathf.Clamp01(_wallGlow / 0.45f) * 0.85f);
+            b.StrokeArc(0f, RW, RW + 4f, a0, a1, 12f, wallCol);
             float stepA = 22f / RW;
             for (float a = Mathf.Ceil(a0 / stepA) * stepA; a < a1; a += stepA)
             {
                 b.Push(0f, RW, a);
-                b.FillRect(RW + 9f, -3.5f, 6f, 7f, Palette.Wall);
+                b.FillRect(RW + 9f, -3.5f, 6f, 7f, wallCol);
                 b.Pop();
             }
             if (g.Flash > 0f)
@@ -183,6 +187,11 @@ namespace LineDefense.View
             if (!v.Dragging || v.DragLine == null) return;
             var dl = v.DragLine;
             var ids = dl.Nodes;
+            if (v.DragSeg >= 0)
+            {
+                DrawInsertPreview(g, v, dl);
+                return;
+            }
             bool tail = v.DragEnd == LineEnd.Tail;
             var endN = g.NodeById(tail ? ids[ids.Count - 1] : ids[0]);
             if (endN == null) return;
@@ -205,6 +214,31 @@ namespace LineDefense.View
             b.Polyline(pts, 7f, Palette.WithAlpha(Palette.LineColor(dl.ColorIndex), 0.55f), false, false);
         }
 
+        // 구간을 끌 때: 앞 정거장 -> 커서(또는 끼울 정거장) -> 뒤 정거장을 반투명으로 그림
+        void DrawInsertPreview(Game g, ViewState v, Line dl)
+        {
+            var ids = dl.Nodes;
+            if (v.DragSeg >= Game.SegmentCount(dl)) return;
+            var a = g.NodeById(ids[v.DragSeg]);
+            var c = g.NodeById(ids[(v.DragSeg + 1) % ids.Count]);
+            if (a == null || c == null) return;
+            var tn = v.DragTarget;
+            bool ok = tn != null && !ids.Contains(tn.Id) && g.CanJoin(dl, tn);
+            Vec2 mid = ok ? tn.Pos : v.DragPos;
+            _centroidPs.Clear();
+            foreach (int id in ids) _centroidPs.Add(g.NodeById(id).Pos);
+            _centroidPs.Add(mid);
+            var center = Game.Centroid(_centroidPs);
+            var col = Palette.WithAlpha(Palette.LineColor(dl.ColorIndex), 0.55f);
+            pts.Clear();
+            pts.Add(a.Pos.ToV());
+            if (Game.Bend(a.Pos, mid, center, out var b0)) pts.Add(b0.ToV());
+            pts.Add(mid.ToV());
+            if (Game.Bend(mid, c.Pos, center, out var b1)) pts.Add(b1.ToV());
+            pts.Add(c.Pos.ToV());
+            b.Polyline(pts, 7f, col, false, false);
+        }
+
         void DrawShots(Effects fx)
         {
             foreach (var s in fx.Shots)
@@ -216,7 +250,7 @@ namespace LineDefense.View
             foreach (var p in fx.Parts)
                 b.FillRect(p.P.x - 2f, p.P.y - 2f, 4f, 4f, Palette.WithAlpha(p.Col, Mathf.Min(1f, p.Life * 2f)));
             foreach (var f in fx.Floats)
-                labels.Add(cam, f.Text, f.P.x, f.P.y, 13f, Palette.WithAlpha(Palette.Food, Mathf.Min(1f, f.Life * 1.5f)), true);
+                labels.Add(cam, f.Text, f.P.x, f.P.y, f.Size > 0f ? f.Size : 15f, Palette.WithAlpha(f.Col, Mathf.Min(1f, f.Life * 1.5f)), true);
         }
 
         void DrawGhost(Game g, ViewState v)

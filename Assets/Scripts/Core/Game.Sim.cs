@@ -113,7 +113,19 @@ namespace LineDefense.Core
                 }
                 else
                 {
-                    if (!CheatInvincible) Wall -= dt * B.MON_ATK;
+                    if (!CheatInvincible)
+                    {
+                        float dmg = dt * B.MON_ATK;
+                        Wall -= dmg;
+                        // 피해가 1 쌓일 때마다 표시용으로 알림
+                        m.WallAcc += dmg;
+                        if (m.WallAcc >= 1f)
+                        {
+                            int n = (int)m.WallAcc;
+                            m.WallAcc -= n;
+                            Emit(new GameEvent { Type = GameEventType.WallHit, A = m.Pos, Amount = n });
+                        }
+                    }
                     Flash = .25f;
                     m.Bob += dt * 16f;
                 }
@@ -123,14 +135,11 @@ namespace LineDefense.Core
                 var m = Mons[i];
                 if (m.Hp > 0f) continue;
                 Emit(new GameEvent { Type = GameEventType.Burst, A = m.Pos });
-                Emit(new GameEvent { Type = GameEventType.Kill, A = m.Pos });
+                // 골드는 표시 계층에서 동전이 HUD로 날아가 들어가게 함
+                Emit(new GameEvent { Type = GameEventType.Kill, A = m.Pos, Amount = MathF.Max(0f, B.GOLD_PER_KILL) });
                 Mons.RemoveAt(i);
                 Kills++;
-                if (B.GOLD_PER_KILL > 0f)
-                {
-                    Gold += B.GOLD_PER_KILL;
-                    Emit(new GameEvent { Type = GameEventType.Float, A = new Vec2(m.Pos.x, m.Pos.y - 14f), Text = "+" + FmtNum(B.GOLD_PER_KILL) });
-                }
+                if (B.GOLD_PER_KILL > 0f) Gold += B.GOLD_PER_KILL;
                 if (Gold >= UpgCost(0) && AnyFortUpgradable())
                     Bark("canUpg", LineTexts.One("aide", "전리품으로 골드가 모였습니다. 요새를 눌러 강화하실 수 있습니다. 다만 강한 요새는 더 많이 먹고, 빠른 요새는 화살을 더 씁니다."));
             }

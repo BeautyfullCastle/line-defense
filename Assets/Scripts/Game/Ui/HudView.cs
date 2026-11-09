@@ -97,21 +97,38 @@ namespace LineDefense.View.Ui
             return h;
         }
 
-        /// <summary>수치와 버튼 글자를 갱신합니다.</summary>
-        public void Refresh(Game g, bool paused, int speed)
+        /// <summary>골드 숫자가 날아오는 동전을 맞는 칸입니다.</summary>
+        public RectTransform GoldRect => _gold.rectTransform;
+
+        /// <summary>성벽 수치 글자 칸입니다.</summary>
+        public RectTransform WallRect => _wallTxt.rectTransform;
+
+        float _wallFlash;
+
+        /// <summary>성벽이 피해를 받았을 때 막대와 수치를 잠깐 빨갛게 합니다.</summary>
+        public void WallHit() => _wallFlash = 0.35f;
+
+        /// <summary>
+        /// 수치와 버튼 글자를 갱신합니다. goldPending은 아직 날아오는 중인 골드로, 도착할 때 숫자에 더해집니다.
+        /// </summary>
+        public void Refresh(Game g, bool paused, int speed, int goldPending = 0)
         {
             float ratio = g.WallMax > 0f ? Mathf.Clamp01(g.Wall / g.WallMax) : 0f;
             _barFill.anchorMax = new Vector2(ratio, 1f);
-            _barFillImg.color = g.Wall < g.WallMax * 0.35f ? Palette.Danger : Palette.Ink;
+            _wallFlash = Mathf.Max(0f, _wallFlash - Time.unscaledDeltaTime);
+            bool hurt = _wallFlash > 0f;
+            _barFillImg.color = hurt || g.Wall < g.WallMax * 0.35f ? Palette.Danger : Palette.Ink;
+            _wallTxt.color = hurt ? Palette.Danger : Palette.Ink;
 
             // 표시 값이 바뀐 프레임에만 문자열을 새로 만듦
-            int key = HashCode.Combine(g.Wave, g.Routes.Count, g.Gold, g.Phase, Mathf.CeilToInt(g.Count), g.Mons.Count + g.QueueCount,
+            float shownGold = Mathf.Max(0f, g.Gold - goldPending);
+            int key = HashCode.Combine(g.Wave, g.Routes.Count, shownGold, g.Phase, Mathf.CeilToInt(g.Count), g.Mons.Count + g.QueueCount,
                 HashCode.Combine(Mathf.CeilToInt(g.Wall), Mathf.RoundToInt(g.WallMax), paused, speed));
             if (key == _key) return;
             _key = key;
             Set(_wave, g.Wave.ToString());
             Set(_routes, g.Routes.Count.ToString());
-            Set(_gold, Fmt(g.Gold));
+            Set(_gold, Fmt(shownGold));
             if (g.Phase == Phase.Countdown)
             {
                 Set(_phaseL, "다음 침공");
